@@ -246,3 +246,46 @@ html {
 .animate-scale-in {
   animation: scaleIn 0.3s ease-out;
 }
+
+/* High contrast mode for landing page */
+.high-contrast {
+  --background: #000000;
+  --foreground: #ffffff;
+}
+
+.high-contrast .bg-white {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+.high-contrast .bg-gray-50,
+.high-contrast .bg-gray-100 {
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+}
+
+.high-contrast .text-gray-900 {
+  color: #ffffff !important;
+}
+
+.high-contrast .text-gray-700 {
+  color: #e0e0e0 !important;
+}
+
+.high-contrast .text-gray-600 {
+  color: #cccccc !important;
+}
+
+.high-contrast .border-gray-200,
+.high-contrast .border-gray-300 {
+  border-color: #ffffff !important;
+}
+
+/* Font size adjustments for accessibility */
+.text-large {
+  font-size: 125% !important;
+}
+
+.text-xlarge {
+  font-size: 150% !important;
+}

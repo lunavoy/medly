@@ -12,6 +12,7 @@ import {
   Phone,
   Settings
 } from 'lucide-react';
+import TestSupabase from './TestSupabase'
 import { Button } from './components/ui/button';
 import { Card, CardContent } from './components/ui/card';
 import { DashboardOverview } from './components/DashboardOverview';
@@ -21,18 +22,24 @@ import { GoogleFitData } from './components/GoogleFitData';
 import { HealthPlan } from './components/HealthPlan';
 import { AppointmentFlow } from './components/AppointmentFlow';
 import { Toaster } from './components/ui/sonner';
+import Landing from './Landing';
+import { LoginSignup } from './components/LoginSignup';
 
 export default function App() {
+  const [currentView, setCurrentView] = useState<'landing' | 'login' | 'dashboard'>('landing');
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [appointmentOpen, setAppointmentOpen] = useState(false);
-
-  // Mock user data for demonstration
-  const user = {
+  const [user, setUser] = useState({
     name: 'Maria Silva',
     age: 68,
     healthPlan: 'Amil Saúde Premium',
     memberSince: 'Janeiro 2019'
+  });
+
+  const handleLogin = (userData: any) => {
+    setUser(userData);
+    setCurrentView('dashboard');
   };
 
   const navigationItems = [
@@ -242,6 +249,10 @@ export default function App() {
 
       {/* Toast Notifications */}
       <Toaster position="top-right" />
+
+      {/* Landing Page */}
+      {currentView === 'landing' && <Landing onClose={() => setCurrentView('login')} />}
+      {currentView === 'login' && <LoginSignup onLogin={handleLogin} onBack={() => setCurrentView('landing')} />}
     </div>
   );
 }
