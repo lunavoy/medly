@@ -1,8 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '../supabase/client';
 
 export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        // Ensure profile exists for already-signed-in users.
+        createProfileIfNotExists();
+    }, []);
 
     const handleGoogleLogin = async () => {
         setLoading(true);
@@ -10,13 +16,16 @@ export default function LoginScreen() {
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: window.location.origin
+                redirectTo: `${window.location.origin}/dashboard`
             }
         });
-        
+
         if (error) {
             console.error('Erro no login:', error);
             alert('Erro ao fazer login');
+        } else {
+            // If sign-in returns successfully without redirect, ensure profile exists
+            await createProfileIfNotExists();
         }
         
         setLoading(false);
@@ -161,4 +170,49 @@ export default function LoginScreen() {
             </div>
         </div>
     );
+}
+
+async function createProfileIfNotExists() {
+    try {
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) return;
+
+        // Check if profile exists first
+        const { data: existingProfile, error: fetchErr } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (fetchErr) {
+            console.warn('Erro ao buscar perfil:', fetchErr);
+            return;
+        }
+
+        if (existingProfile && existingProfile.id) {
+            // Profile already exists — no toast necessary
+            return;
+        }
+
+        const { data: inserted, error: insertErr } = await supabase.from('profiles').insert({
+            id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name || user.user_metadata?.fullName || ''
+        }).select();
+
+        if (insertErr) {
+            console.warn('Erro ao inserir perfil:', insertErr);
+            toast.error('Erro ao criar perfil');
+            return;
+        }
+
+        // Notify user that profile was created
+        toast.success('Perfil criado com sucesso!');
+    } catch (err) {
+        console.warn('Erro ao criar/atualizar perfil:', err);
+        toast.error('Erro ao criar perfil');
+    }
 }

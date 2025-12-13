@@ -15,7 +15,7 @@ export default function LoginPage() {
     const { error } = await signInWithEmail(email, password);
     setLoading(false);
     if (error) return alert(error.message || 'Erro ao entrar');
-    navigate('/');
+    navigate('/dashboard');
   };
 
   const handleGoogle = async () => {

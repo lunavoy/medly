@@ -49,7 +49,7 @@ export const AuthProvider: React.FC<any> = ({ children }) => {
   };
 
   const signInWithGoogle = async () => {
-    return supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+    return supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/dashboard` } });
   };
 
   const signOut = async () => {

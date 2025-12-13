@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { HeroSection } from './components/HeroSection';
 import { ProblemSection } from './components/ProblemSection';
 import { SolutionSection } from './components/SolutionSection';
@@ -26,6 +27,8 @@ export default function Landing({ onClose }: LandingProps) {
     setIsSignupModalOpen(true);
   };
 
+  const navigate = useNavigate();
+
   return (
     <div className={`fixed inset-0 bg-white overflow-y-auto z-50 ${highContrast ? 'high-contrast' : ''} ${fontSize === 'large' ? 'text-large' : fontSize === 'xlarge' ? 'text-xlarge' : ''}`}>
       <AccessibilityControls 
@@ -36,9 +39,17 @@ export default function Landing({ onClose }: LandingProps) {
       />
 
       {/* Experimente o App Button */}
-      {onClose && (
+      {onClose ? (
         <button
           onClick={onClose}
+          className="fixed top-4 left-4 z-50 bg-gradient-to-r from-[#00796B] to-[#00ACC1] text-white hover:shadow-xl shadow-lg rounded-full px-8 py-4 transition-all hover:scale-105"
+          style={{ fontSize: 'clamp(1.125rem, 1.75vw, 1.5rem)', minHeight: '48px' }}
+        >
+          Experimente o App
+        </button>
+      ) : (
+        <button
+          onClick={() => navigate('/login')}
           className="fixed top-4 left-4 z-50 bg-gradient-to-r from-[#00796B] to-[#00ACC1] text-white hover:shadow-xl shadow-lg rounded-full px-8 py-4 transition-all hover:scale-105"
           style={{ fontSize: 'clamp(1.125rem, 1.75vw, 1.5rem)', minHeight: '48px' }}
         >

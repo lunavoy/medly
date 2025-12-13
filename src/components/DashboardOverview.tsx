@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Heart, Calendar, FileText, TrendingUp, Clock, Shield } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabase/client';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -17,6 +19,7 @@ interface DashboardOverviewProps {
 }
 
 export function DashboardOverview({ user }: DashboardOverviewProps) {
+  const navigate = useNavigate();
   const upcomingAppointments = [
     {
       doctor: 'Dr. Ana Santos',

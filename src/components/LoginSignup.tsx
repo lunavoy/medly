@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { supabase } from '../supabase/client';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Lock, Calendar, Shield, Heart, ArrowLeft, UserPlus } from 'lucide-react';
+import { User, Lock, Calendar, Shield, Heart, ArrowLeft, UserPlus, Mail } from 'lucide-react';
 
 interface LoginSignupProps {
   onLogin: (userData: any) => void;
@@ -26,11 +28,13 @@ export function LoginSignup({ onLogin, onBack }: LoginSignupProps) {
   const [signupData, setSignupData] = useState({
     cpf: '',
     fullName: '',
+    email: '',
     birthDate: '',
     healthPlan: '',
     password: '',
     confirmPassword: ''
   });
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
 
   const formatCPF = (value: string) => {
     const numbers = value.replace(/\D/g, '');
@@ -67,11 +71,72 @@ export function LoginSignup({ onLogin, onBack }: LoginSignupProps) {
     onLogin({
       name: signupData.fullName,
       cpf: signupData.cpf,
+      email: signupData.email,
       age: age,
       healthPlan: signupData.healthPlan,
       memberSince: new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
     });
   };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoadingGoogle(true);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/dashboard` }
+      });
+      if (error) {
+        console.error('Erro no login com Google:', error);
+        toast.error('Erro ao entrar com Google');
+      } else {
+        // If sign-in returns without redirect, ensure profile exists
+        await createProfileIfNotExists();
+      }
+    } catch (err) {
+      console.warn('Erro ao iniciar login com Google:', err);
+      toast.error('Erro ao entrar com Google');
+    } finally {
+      setLoadingGoogle(false);
+    }
+  };
+
+  async function createProfileIfNotExists() {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: existingProfile, error: fetchErr } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (fetchErr) {
+        console.warn('Erro ao buscar perfil:', fetchErr);
+        return;
+      }
+      if (existingProfile && existingProfile.id) return;
+      const { data: inserted, error: insertErr } = await supabase.from('profiles').insert({
+        id: user.id,
+        email: user.email,
+        full_name: user.user_metadata?.full_name || user.user_metadata?.fullName || ''
+      }).select();
+      if (insertErr) {
+        console.warn('Erro ao inserir perfil:', insertErr);
+        toast.error('Erro ao criar perfil');
+        return;
+      }
+      toast.success('Perfil criado com sucesso!');
+    } catch (err) {
+      console.warn('Erro ao criar/atualizar perfil:', err);
+      toast.error('Erro ao criar perfil');
+    }
+  }
+
+  useEffect(() => {
+    // In case OAuth redirected back to the app, ensure profile exists
+    createProfileIfNotExists();
+  }, []);
 
   return (
     <div 
@@ -135,6 +200,21 @@ export function LoginSignup({ onLogin, onBack }: LoginSignupProps) {
                 </p>
 
                 <form onSubmit={handleLoginSubmit} className="space-y-6">
+                  {/* Google sign-in */}
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={loadingGoogle}
+                    className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white border-2 border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="shrink-0">
+                      <path d="M19.6 10.227c0-.709-.064-1.39-.182-2.045H10v3.868h5.382a4.6 4.6 0 01-1.996 3.018v2.51h3.232c1.891-1.742 2.982-4.305 2.982-7.35z" fill="#4285F4"/>
+                      <path d="M10 20c2.7 0 4.964-.895 6.618-2.423l-3.232-2.509c-.895.6-2.04.955-3.386.955-2.605 0-4.81-1.76-5.595-4.123H1.064v2.59A9.996 9.996 0 0010 20z" fill="#34A853"/>
+                      <path d="M4.405 11.9c-.2-.6-.314-1.24-.314-1.9 0-.66.114-1.3.314-1.9V5.51H1.064A9.996 9.996 0 000 10c0 1.614.386 3.14 1.064 4.49l3.34-2.59z" fill="#FBBC05"/>
+                      <path d="M10 3.977c1.468 0 2.786.505 3.823 1.496l2.868-2.868C14.959.99 12.695 0 10 0 6.09 0 2.71 2.24 1.064 5.51l3.34 2.59C5.19 5.736 7.395 3.977 10 3.977z" fill="#EA4335"/>
+                    </svg>
+                    {loadingGoogle ? 'Carregando...' : 'Continuar com Google'}
+                  </button>
                   <div>
                     <label className="flex items-center gap-2 text-gray-700 mb-3" style={{ fontSize: 'clamp(1.125rem, 1.5vw, 1.375rem)' }}>
                       <User className="w-5 h-5 text-[#00796B]" />
@@ -230,6 +310,21 @@ export function LoginSignup({ onLogin, onBack }: LoginSignupProps) {
                 </p>
 
                 <form onSubmit={handleSignupSubmit} className="space-y-6">
+                  {/* Google sign-in for signup */}
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={loadingGoogle}
+                    className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white border-2 border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="shrink-0">
+                      <path d="M19.6 10.227c0-.709-.064-1.39-.182-2.045H10v3.868h5.382a4.6 4.6 0 01-1.996 3.018v2.51h3.232c1.891-1.742 2.982-4.305 2.982-7.35z" fill="#4285F4"/>
+                      <path d="M10 20c2.7 0 4.964-.895 6.618-2.423l-3.232-2.509c-.895.6-2.04.955-3.386.955-2.605 0-4.81-1.76-5.595-4.123H1.064v2.59A9.996 9.996 0 0010 20z" fill="#34A853"/>
+                      <path d="M4.405 11.9c-.2-.6-.314-1.24-.314-1.9 0-.66.114-1.3.314-1.9V5.51H1.064A9.996 9.996 0 000 10c0 1.614.386 3.14 1.064 4.49l3.34-2.59z" fill="#FBBC05"/>
+                      <path d="M10 3.977c1.468 0 2.786.505 3.823 1.496l2.868-2.868C14.959.99 12.695 0 10 0 6.09 0 2.71 2.24 1.064 5.51l3.34 2.59C5.19 5.736 7.395 3.977 10 3.977z" fill="#EA4335"/>
+                    </svg>
+                    {loadingGoogle ? 'Carregando...' : 'Continuar com Google'}
+                  </button>
                   <div>
                     <label className="flex items-center gap-2 text-gray-700 mb-3" style={{ fontSize: 'clamp(1.125rem, 1.5vw, 1.375rem)' }}>
                       <User className="w-5 h-5 text-[#00796B]" />
@@ -260,6 +355,22 @@ export function LoginSignup({ onLogin, onBack }: LoginSignupProps) {
                       style={{ fontSize: 'clamp(1.125rem, 1.5vw, 1.25rem)', minHeight: '48px' }}
                       placeholder="000.000.000-00"
                       maxLength={14}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 text-gray-700 mb-3" style={{ fontSize: 'clamp(1.125rem, 1.5vw, 1.375rem)' }}>
+                      <Mail className="w-5 h-5 text-[#00796B]" />
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={signupData.email}
+                      onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
+                      className="w-full px-6 py-4 border-2 border-gray-300 rounded-xl focus:border-[#00796B] focus:outline-none transition-colors"
+                      style={{ fontSize: 'clamp(1.125rem, 1.5vw, 1.25rem)', minHeight: '48px' }}
+                      placeholder="email@exemplo.com"
                     />
                   </div>
 
