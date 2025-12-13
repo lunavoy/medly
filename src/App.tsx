@@ -10,9 +10,9 @@ import {
   X,
   Shield,
   Phone,
-  Settings
+  Settings,
+  User
 } from 'lucide-react';
-import TestSupabase from './TestSupabase'
 import { Button } from './components/ui/button';
 import { Card, CardContent } from './components/ui/card';
 import { DashboardOverview } from './components/DashboardOverview';
@@ -21,6 +21,7 @@ import { ExamsTests } from './components/ExamsTests';
 import { GoogleFitData } from './components/GoogleFitData';
 import { HealthPlan } from './components/HealthPlan';
 import { AppointmentFlow } from './components/AppointmentFlow';
+import { ProfileTab } from './components/ProfileTab';
 import { Toaster } from './components/ui/sonner';
 import Landing from './Landing';
 import { LoginSignup } from './components/LoginSignup';
@@ -72,6 +73,12 @@ export default function App() {
       label: 'Plano de Saúde',
       icon: Shield,
       description: 'Cobertura e benefícios'
+    },
+    {
+      id: 'profile',
+      label: 'Perfil',
+      icon: User,
+      description: 'Seus dados e documentos'
     }
   ];
 
@@ -87,6 +94,8 @@ export default function App() {
         return <GoogleFitData />;
       case 'plan':
         return <HealthPlan user={user} />;
+      case 'profile':
+        return <ProfileTab user={user} />;
       default:
         return <DashboardOverview user={user} />;
     }

@@ -1,11 +1,11 @@
 
-  # Health Dashboard App
+  # Med.ly
+ 
+ Projeto Integrador da faculdade de Ciências da Computação
 
-  This is a code bundle for Health Dashboard App. The original project is available at https://www.figma.com/design/ti802gjzAi3UCOxHLTC1lr/Health-Dashboard-App.
+  ## Executando o código
 
-  ## Running the code
+  Execute `npm.cmd i` para instalar as dependências.
 
-  Run `npm i` to install the dependencies.
-
-  Run `npm run dev` to start the development server.
+  Execute `npm.cmd run dev` para iniciar o servidor de desenvolvimento.
   
