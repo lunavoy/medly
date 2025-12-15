@@ -25,11 +25,7 @@ import { Button } from './ui/button';
 import { toast } from 'sonner';
 
 interface ProfileTabProps {
-  user: {
-    name: string;
-    age: number;
-    healthPlan: string;
-  };
+  user?: any;
 }
 
 export function ProfileTab({ user }: ProfileTabProps) {
@@ -162,7 +158,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
               {/* Profile Photo */}
               <div className="flex-shrink-0">
                 <div className="w-32 h-32 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-5xl shadow-lg">
-                  {user.name.charAt(0)}
+                  {user?.name?.charAt(0) ?? 'U'}
                 </div>
                 <p className="text-center text-gray-600 mt-2 text-sm">Foto 3×4</p>
               </div>
@@ -171,7 +167,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
               <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white/70 p-4 rounded-xl">
                   <p className="text-gray-600 text-sm mb-1">Nome completo</p>
-                  <p className="text-gray-900 text-lg">{user.name}</p>
+                  <p className="text-gray-900 text-lg">{user?.name}</p>
                 </div>
                 <div className="bg-white/70 p-4 rounded-xl">
                   <p className="text-gray-600 text-sm mb-1">CPF</p>
@@ -386,7 +382,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
                   {documents.photo ? (
                     <>
                       <div className="w-24 h-24 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-4xl mx-auto mb-4">
-                        {user.name.charAt(0)}
+                        {user?.name?.charAt(0) ?? 'U'}
                       </div>
                       <div className="flex items-center justify-center gap-2 text-green-700 mb-2">
                         <Check className="w-5 h-5" />
@@ -456,7 +452,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
                 <CardContent className="p-6 text-center">
                   <Shield className={`w-12 h-12 mx-auto mb-4 ${documents.healthCard ? 'text-green-600' : 'text-gray-400'}`} />
                   <p className="text-gray-900 mb-2">Carteirinha do plano</p>
-                  <p className="text-gray-600 text-sm mb-4">{user.healthPlan}</p>
+                  <p className="text-gray-600 text-sm mb-4">{user?.healthPlan || user?.health_plan}</p>
                   <div className="space-y-2">
                     <Button
                       onClick={() => handleUploadDocument('healthCard')}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useUserProfile } from './hooks/useSupabase';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Home, 
@@ -40,20 +41,17 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [appointmentOpen, setAppointmentOpen] = useState(false);
-  const [user, setUser] = useState({
-    name: 'Maria Silva',
-    age: 68,
-    healthPlan: 'Amil Saúde Premium',
-    memberSince: 'Janeiro 2019'
-  });
+  const { profile, loading } = useUserProfile()
   const navigate = useNavigate();
   const location = useLocation();
   const { user: authUser, signOut, loading: authLoading } = useAuth();
 
-  const handleLogin = (userData: any) => {
-    setUser(userData);
+  const handleLogin = (_userData: any) => {
     navigate('/dashboard');
   };
+
+  // Do not block the whole app render while the profile is loading —
+  // components will show their own loaders when necessary.
 
   const navigationItems = [
     {
@@ -97,7 +95,7 @@ export default function App() {
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <DashboardOverview user={user} />;
+        return <DashboardOverview user={profile} />;
       case 'doctors':
         return <DoctorsDirectory />;
       case 'exams':
@@ -105,11 +103,11 @@ export default function App() {
       case 'fitness':
         return <GoogleFitData />;
       case 'plan':
-        return <HealthPlan user={user} />;
+        return <HealthPlan user={profile} />;
       case 'profile':
-        return <ProfileTab user={user} />;
+        return <ProfileTab user={profile} />;
       default:
-        return <DashboardOverview user={user} />;
+        return <DashboardOverview user={profile} />;
     }
   };
 
@@ -144,8 +142,8 @@ export default function App() {
                   <Heart className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-semibold text-gray-900">HealthCare+</h1>
-                  <p className="text-sm text-gray-600">Sua saúde em primeiro lugar</p>
+                  <h1 className="text-xl font-semibold text-gray-900">Med.ly</h1>
+                  <p className="text-sm text-gray-600">Sua Saúde é Única</p>
                 </div>
               </div>
               <Button
@@ -161,14 +159,13 @@ export default function App() {
             <div className="p-6 border-b border-teal-100">
               <div className="flex items-center space-x-4">
                 <div className="w-16 h-16 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-xl font-semibold">
-                  {user.name.charAt(0)}
+                  {profile?.full_name?.charAt(0) ?? 'U'}
                 </div>
                 <div>
-                  <h2 className="text-lg font-medium text-gray-900">{user.name}</h2>
-                  <p className="text-base text-gray-600">{user.age} anos</p>
+                  <h2 className="text-lg font-medium text-gray-900">{profile?.full_name}</h2>
                   <div className="flex items-center mt-1">
                     <Shield className="w-4 h-4 text-teal-600 mr-1" />
-                    <span className="text-sm text-teal-700">{user.healthPlan}</span>
+                    <span className="text-sm text-teal-700">{profile?.health_plan}</span>
                   </div>
                 </div>
               </div>
@@ -239,7 +236,7 @@ export default function App() {
                     <Phone className="w-6 h-6 text-red-600" />
                     <div>
                       <p className="font-medium text-red-900">Emergência 24h</p>
-                      <p className="text-sm text-red-700">(11) 0800-123-4567</p>
+                      <p className="text-sm text-red-700">192 - Samu</p>
                 </div>
               </div>
             </CardContent>
@@ -253,7 +250,8 @@ export default function App() {
         <header className="bg-white shadow-sm border-b border-teal-100 sticky top-0 z-30">
           <div className="flex items-center justify-between p-4">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
+              <h1 className="text-2xl font-semibold text-gray-900 flex items-center">
+                {currentTab?.icon && <currentTab.icon className="w-6 h-6 mr-3 text-teal-600" />}
                 {currentTab?.label}
               </h1>
               <p className="text-base text-gray-600">
@@ -326,7 +324,7 @@ export default function App() {
       <AppointmentFlow
         isOpen={appointmentOpen}
         onClose={() => setAppointmentOpen(false)}
-        userName={user.name}
+        userName={profile?.full_name}
       />
 
       {/* Toast Notifications */}
