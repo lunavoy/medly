@@ -8,12 +8,34 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
 
   useEffect(() => {
     let mounted = true;
+
+    // Check current session
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
-      if (data?.session) setAuthenticated(true);
-      setChecking(false);
+      if (data?.session) {
+        setAuthenticated(true);
+        setChecking(false);
+      } else {
+        setChecking(false);
+      }
     });
-    return () => { mounted = false; };
+
+    // Listen for auth state changes (e.g., after OAuth redirect)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!mounted) return;
+        if (session) {
+          setAuthenticated(true);
+        } else {
+          setAuthenticated(false);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   if (checking)
