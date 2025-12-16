@@ -156,75 +156,97 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
                 <Calendar className="w-6 h-6 mr-3 text-cyan-600" />
                 Próximas Consultas
               </div>
-              <span className="text-base font-semibold text-cyan-700">{appointments?.length ?? 0}</span>
+              <span className="text-base font-semibold text-cyan-700">{(appointments?.filter((a: any) => a.status !== 'cancelada')?.length) ?? 0}</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {appointments && appointments.length > 0 ? (
-              appointments.map((appointment: any, index: number) => {
-                const prefix = appointment.doctor?.gender === 'M' ? 'Dr.' : 'Dra.';
-                
-                const getStatusColor = (status: string) => {
-                  switch (status) {
-                    case 'agendada':
-                      return 'bg-blue-100 text-blue-700';
-                    case 'confirmada':
-                      return 'bg-green-100 text-green-700';
-                    case 'cancelada':
-                      return 'bg-red-100 text-red-700';
-                    default:
-                      return 'bg-gray-100 text-gray-700';
-                  }
-                };
-
-                const getStatusLabel = (status: string) => {
-                  const labels: Record<string, string> = {
-                    agendada: 'Agendada',
-                    confirmada: 'Confirmada',
-                    cancelada: 'Cancelada',
+          <CardContent>
+            <div className="max-h-80 overflow-y-auto space-y-4">
+              {appointments && appointments.filter((a: any) => a.status !== 'cancelada').length > 0 ? (
+                appointments
+                  .filter((appointment: any) => appointment.status !== 'cancelada')
+                  .map((appointment: any, index: number) => {
+                  const prefix = appointment.doctor?.gender === 'M' ? 'Dr.' : 'Dra.';
+                  
+                  const getStatusColor = (status: string) => {
+                    switch (status) {
+                      case 'agendada':
+                        return 'bg-blue-100 text-blue-700';
+                      case 'confirmada':
+                        return 'bg-green-100 text-green-700';
+                      case 'cancelada':
+                        return 'bg-red-100 text-red-700';
+                      default:
+                        return 'bg-gray-100 text-gray-700';
+                    }
                   };
-                  return labels[status] || status;
-                };
 
-                return (
-                  <div key={index} className="flex items-center justify-between p-4 bg-cyan-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {prefix} {appointment.doctor?.full_name || 'Médico'}
-                      </p>
-                      <p className="text-base text-gray-600">
-                        {appointment.doctor?.specialty_id?.specialty || 'Especialidade'}
-                      </p>
-                      <p className={`text-xs font-semibold mt-2 px-2 py-1 rounded w-fit ${getStatusColor(appointment.status)}`}>
-                        {getStatusLabel(appointment.status)}
-                      </p>
+                  const getStatusLabel = (status: string) => {
+                    const labels: Record<string, string> = {
+                      agendada: 'Agendada',
+                      confirmada: 'Confirmada',
+                      cancelada: 'Cancelada',
+                    };
+                    return labels[status] || status;
+                  };
+
+                  return (
+                    <div key={index} className="flex items-center justify-between p-4 bg-cyan-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {prefix} {appointment.doctor?.full_name || 'Médico'}
+                        </p>
+                        <p className="text-base text-gray-600">
+                          {appointment.doctor?.specialty_id?.specialty || 'Especialidade'}
+                        </p>
+                        <p className={`text-xs font-semibold mt-2 px-2 py-1 rounded w-fit ${getStatusColor(appointment.status)}`}>
+                          {getStatusLabel(appointment.status)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-cyan-700">
+                          {formatAppointmentDate(appointment.start_datetime)}, {formatAppointmentTime(appointment.start_datetime)}
+                        </p>
+                        <Button
+                          size="sm"
+                          className="mt-2 bg-cyan-600 hover:bg-cyan-700"
+                          onClick={() => {
+                            setSelectedAppointment(appointment);
+                            setModalOpen(true);
+                          }}
+                        >
+                          Ver Detalhes
+                        </Button>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium text-cyan-700">
-                        {formatAppointmentDate(appointment.start_datetime)}, {formatAppointmentTime(appointment.start_datetime)}
-                      </p>
-                      <Button
-                        size="sm"
-                        className="mt-2 bg-cyan-600 hover:bg-cyan-700"
-                        onClick={() => {
-                          setSelectedAppointment(appointment);
-                          setModalOpen(true);
-                        }}
-                      >
-                        Ver Detalhes
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="p-4 bg-cyan-50 rounded-lg text-center text-gray-600">
-                Nenhuma consulta agendada
-              </div>
-            )}
+                  );
+                })
+              ) : (
+                <div className="p-4 bg-cyan-50 rounded-lg text-center text-gray-600">
+                  Nenhuma consulta agendada
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Recent Exams */}
+      <Card className="border-cyan-100">
+        <CardHeader>
+          <CardTitle className="text-xl text-gray-900 flex items-center justify-between">
+            <div className="flex items-center">
+              <FileText className="w-6 h-6 mr-3 text-cyan-600" />
+              Exames Recentes
+            </div>
+            <span className="text-base font-semibold text-cyan-700">{exams?.length ?? 0}</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="p-4 bg-cyan-50 rounded-lg text-center text-gray-600">
+            Nenhum exame feito recentemente
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Health Metrics */}
       <Card className="border-teal-100">
@@ -241,24 +263,6 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
               <p className="text-sm text-gray-600">Sincronize seus dados de atividade diretamente do Google Fit.</p>
             </div>
             <Settings className="w-10 h-10 text-teal-600" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Exams */}
-      <Card className="border-cyan-100">
-        <CardHeader>
-          <CardTitle className="text-xl text-gray-900 flex items-center justify-between">
-            <div className="flex items-center">
-              <FileText className="w-6 h-6 mr-3 text-cyan-600" />
-              Exames Recentes
-            </div>
-            <span className="text-base font-semibold text-cyan-700">{exams?.length ?? 0}</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="p-4 bg-cyan-50 rounded-lg text-center text-gray-600">
-            Nenhum exame feito recentemente
           </div>
         </CardContent>
       </Card>

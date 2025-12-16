@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Shield,
@@ -23,6 +23,7 @@ import {
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
+import { supabase } from '../supabase/client';
 
 interface ProfileTabProps {
   user?: any;
@@ -33,6 +34,19 @@ export function ProfileTab({ user }: ProfileTabProps) {
   const [selectedField, setSelectedField] = useState<string | null>(null);
   const [showDocuments, setShowDocuments] = useState(false);
   const [showBiometric, setShowBiometric] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [healthProfileId, setHealthProfileId] = useState<string | number | null>(null);
+  const [comorbidityIdByName, setComorbidityIdByName] = useState<Record<string, string | number>>({});
+  const [bloodTypeOptions, setBloodTypeOptions] = useState<Array<{ id: string | number; label: string }>>([]);
+  const [allComorbidityOptions, setAllComorbidityOptions] = useState<Array<{ id: string | number; name: string }>>([]);
+  const [lastModifiedAt, setLastModifiedAt] = useState<string | null>(null);
+  const [profileData, setProfileData] = useState({
+    fullName: '',
+    birthDate: '',
+    gender: '',
+    cpf: '',
+    email: ''
+  });
   const [emergencyContacts, setEmergencyContacts] = useState([
     { name: 'João Silva', phone: '(11) 98765-4321', relation: 'Filho' }
   ]);
@@ -62,6 +76,45 @@ export function ProfileTab({ user }: ProfileTabProps) {
     setShowBiometric(true);
   };
 
+  const formatLastModified = (dateString: string | null): string => {
+    if (!dateString) return 'Nunca editado';
+    try {
+      const date = new Date(dateString);
+      // Add 1 hour to fix timezone offset
+      date.setHours(date.getHours() + 1);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `Editado em ${day}/${month}/${year} às ${hours}:${minutes}`;
+    } catch {
+      return 'Data inválida';
+    }
+  };
+
+  const formatBirthDate = (dateString: string | null): string => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day} de ${['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][date.getMonth()]} de ${year}`;
+    } catch {
+      return dateString;
+    }
+  };
+
+  const maskCPF = (cpf: string | null): string => {
+    if (!cpf) return '-';
+    // Remove tudo que não é número
+    const cleaned = cpf.replace(/\D/g, '');
+    if (cleaned.length < 11) return cpf;
+    // Mascara os últimos 5 dígitos
+    return cleaned.slice(0, 6) + '*'.repeat(5);
+  };
+
   const handleBiometricAuth = () => {
     setShowBiometric(false);
     setIsEditingHealth(true);
@@ -75,30 +128,31 @@ export function ProfileTab({ user }: ProfileTabProps) {
     toast.success(`Alteração salva e registrada em ${now}`);
   };
 
-  const addAllergy = () => {
+  const addAllergy = async () => {
     const newAllergy = prompt('Digite a alergia:');
     if (newAllergy) {
-      setHealthData({ ...healthData, allergies: [...healthData.allergies, newAllergy] });
+      const nextAllergies = [...healthData.allergies, newAllergy];
+      setHealthData({ ...healthData, allergies: nextAllergies });
+      await persistAllergies(nextAllergies);
     }
   };
 
-  const removeAllergy = (index: number) => {
+  const removeAllergy = async (index: number) => {
     const newAllergies = healthData.allergies.filter((_, i) => i !== index);
     setHealthData({ ...healthData, allergies: newAllergies });
+    await persistAllergies(newAllergies);
   };
 
-  const toggleChronicCondition = (condition: string) => {
+  const toggleChronicCondition = async (condition: string) => {
     const exists = healthData.chronicConditions.includes(condition);
     if (exists) {
-      setHealthData({
-        ...healthData,
-        chronicConditions: healthData.chronicConditions.filter(c => c !== condition)
-      });
+      const next = healthData.chronicConditions.filter(c => c !== condition);
+      setHealthData({ ...healthData, chronicConditions: next });
+      await persistComorbidities(next);
     } else {
-      setHealthData({
-        ...healthData,
-        chronicConditions: [...healthData.chronicConditions, condition]
-      });
+      const next = [...healthData.chronicConditions, condition];
+      setHealthData({ ...healthData, chronicConditions: next });
+      await persistComorbidities(next);
     }
   };
 
@@ -121,6 +175,213 @@ export function ProfileTab({ user }: ProfileTabProps) {
     'Doença renal crônica'
   ];
   const disabilityOptions = ['Visual', 'Auditiva', 'Motora', 'Intelectual', 'Psicossocial'];
+
+  // Load real data for profile, blood types, and comorbidities
+  useEffect(() => {
+    const loadHealthData = async () => {
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        const userId = auth?.user?.id;
+        if (!userId) {
+          console.log('[ProfileTab] No user auth');
+          return;
+        }
+        setProfileId(userId);
+
+        // Fetch user profile data (full_name, birth_date, gender, cpf, email)
+        try {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('full_name, birth_date, gender, cpf, email')
+            .eq('id', userId)
+            .single();
+          
+          if (profileError) {
+            console.error('[ProfileTab] Profile fetch error:', profileError);
+          } else if (profile) {
+            console.log('[ProfileTab] Profile data:', profile);
+            setProfileData({
+              fullName: profile.full_name || '-',
+              birthDate: profile.birth_date || '-',
+              gender: profile.gender || '-',
+              cpf: profile.cpf || '-',
+              email: profile.email || '-'
+            });
+          }
+        } catch (e) {
+          console.error('[ProfileTab] Cannot fetch profile:', e);
+        }
+
+        // Fetch blood types list (id, type, rh_factor) and build label map: `${type}${rh_factor}`
+        let bloodTypeLabelById: Record<string | number, string> = {};
+        let btList: Array<{ id: string | number; label: string }> = [];
+        try {
+          const { data: bt } = await supabase
+            .from('blood_types')
+            .select('id, type, rh_factor')
+            .order('id');
+          console.log('[ProfileTab] Blood types result:', bt);
+          if (bt && bt.length) {
+            bloodTypeLabelById = bt.reduce((acc: any, row: any) => {
+              const label = `${row.type ?? ''}${row.rh_factor ?? ''}`.trim();
+              acc[row.id] = label || `${row.type ?? ''}`;
+              return acc;
+            }, {} as Record<string | number, string>);
+            btList = bt.map((row: any) => ({
+              id: row.id,
+              label: `${row.type ?? ''}${row.rh_factor ?? ''}`.trim() || `${row.type ?? ''}`
+            }));
+            setBloodTypeOptions(btList);
+          }
+        } catch (e) {
+          console.error('[ProfileTab] Blood types fetch error:', e);
+          // keep fallback bloodTypes constant
+        }
+
+        // Fetch patient health profile by profile_id
+        let php = null;
+        try {
+          const { data, error } = await supabase
+            .from('patient_health_profile')
+            .select('*')
+            .eq('profile_id', userId)
+            .maybeSingle();
+          if (error) {
+            console.error('[ProfileTab] Patient health profile error:', error);
+          } else {
+            php = data;
+            console.log('[ProfileTab] Patient health profile:', php);
+            if (php?.id) {
+              setHealthProfileId(php.id);
+              if (php.last_modified_at) {
+                setLastModifiedAt(php.last_modified_at);
+              }
+            }
+          }
+        } catch (e) {
+          console.error('[ProfileTab] Cannot fetch patient_health_profile:', e);
+        }
+
+        // Fetch comorbidities options and patient's comorbidities via link table
+        let comorbidityNameById: Record<string | number, string> = {};
+        let userComorbidityIds: Array<string | number> = [];
+        try {
+          const [{ data: allComorbs }, { data: links }] = await Promise.all([
+            // If the column is literally "Nome da Comorbidade" (with space/case), alias it to name
+            supabase.from('comorbidities').select('id, name'),
+            php?.id
+              ? supabase
+                  .from('patient_comorbidities')
+                  .select('comorbidity_id')
+                  .eq('patient_health_profile_id', php.id)
+              : Promise.resolve({ data: [], error: null })
+          ] as any);
+          if (allComorbs) {
+            comorbidityNameById = allComorbs.reduce((acc: any, row: any) => {
+              const nm = row.name || row.Nome || row.nome || row.title;
+              acc[row.id] = nm;
+              return acc;
+            }, {} as Record<string | number, string>);
+            // Set comorbidity options for the checklist UI
+            setAllComorbidityOptions(allComorbs.map((row: any) => ({
+              id: row.id,
+              name: row.name || row.Nome || row.nome || row.title
+            })));
+          }
+          if (links) {
+            userComorbidityIds = links.map((l: any) => l.comorbidity_id);
+          }
+          // build reverse map
+          const reverse: Record<string, string | number> = {};
+          Object.entries(comorbidityNameById).forEach(([id, nm]) => {
+            if (nm) reverse[nm] = id;
+          });
+          setComorbidityIdByName(reverse);
+        } catch (e) {
+          console.error('[ProfileTab] Comorbidities fetch error:', e);
+          // keep fallback chronicOptions constant
+        }
+
+        // Map to UI state (fallback to current when missing)
+        const bloodTypeText = php?.blood_type_id
+          ? (bloodTypeLabelById[php.blood_type_id] || healthData.bloodType)
+          : healthData.bloodType;
+        const organDonor = typeof php?.organ_donor === 'boolean' ? php!.organ_donor : healthData.organDonor;
+        const bloodDonor = typeof php?.blood_donor === 'boolean' ? php!.blood_donor : healthData.bloodDonor;
+        const allergiesField = php?.allergies;
+        const allergies = Array.isArray(allergiesField)
+          ? allergiesField
+          : (typeof allergiesField === 'string' && allergiesField.trim().length
+            ? allergiesField.split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
+            : healthData.allergies);
+        const chronicConditions = userComorbidityIds.length
+          ? userComorbidityIds.map((id) => comorbidityNameById[id]).filter(Boolean)
+          : healthData.chronicConditions;
+
+        setHealthData((prev) => ({
+          ...prev,
+          bloodType: bloodTypeText,
+          organDonor,
+          bloodDonor,
+          allergies,
+          chronicConditions,
+        }));
+      } catch (err) {
+        // leave mocks in place if anything fails
+      }
+    };
+
+    loadHealthData();
+  }, []);
+
+  // Helpers to persist to DB
+  const ensureHealthProfile = async (): Promise<string | number | null> => {
+    try {
+      if (healthProfileId) return healthProfileId;
+      if (!profileId) return null;
+      const { data, error } = await supabase
+        .from('patient_health_profile')
+        .insert({ profile_id: profileId })
+        .select('id')
+        .single();
+      if (error) return null;
+      setHealthProfileId(data.id);
+      return data.id;
+    } catch {
+      return null;
+    }
+  };
+
+  const persistDonorFlag = async (field: 'organ_donor' | 'blood_donor', value: boolean) => {
+    const hpId = healthProfileId || (await ensureHealthProfile());
+    if (!hpId) return;
+    await supabase.from('patient_health_profile').update({ [field]: value }).eq('id', hpId);
+  };
+
+  const persistAllergies = async (allergiesArr: string[]) => {
+    const hpId = healthProfileId || (await ensureHealthProfile());
+    if (!hpId) return;
+    // store as TXT (comma-separated)
+    const txt = allergiesArr.join(', ');
+    await supabase.from('patient_health_profile').update({ allergies: txt }).eq('id', hpId);
+  };
+
+  const persistComorbidities = async (names: string[]) => {
+    const hpId = healthProfileId || (await ensureHealthProfile());
+    if (!hpId) return;
+    const ids = names
+      .map((n) => comorbidityIdByName[n])
+      .filter((v) => v !== undefined && v !== null) as Array<string | number>;
+    try {
+      await supabase.from('patient_comorbidities').delete().eq('patient_health_profile_id', hpId);
+      if (ids.length > 0) {
+        const payload = ids.map((cid) => ({ patient_health_profile_id: hpId, comorbidity_id: cid }));
+        await supabase.from('patient_comorbidities').insert(payload);
+      }
+    } catch (e) {
+      // ignore for now, UI remains consistent locally
+    }
+  };
 
   const completedDocs = Object.values(documents).filter(Boolean).length;
   const totalDocs = Object.keys(documents).length;
@@ -167,27 +428,23 @@ export function ProfileTab({ user }: ProfileTabProps) {
               <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white/70 p-4 rounded-xl">
                   <p className="text-gray-600 text-sm mb-1">Nome completo</p>
-                  <p className="text-gray-900 text-lg">{user?.name}</p>
+                  <p className="text-gray-900 text-lg">{profileData.fullName}</p>
                 </div>
                 <div className="bg-white/70 p-4 rounded-xl">
                   <p className="text-gray-600 text-sm mb-1">CPF</p>
-                  <p className="text-gray-900 text-lg">123.456.789-**</p>
+                  <p className="text-gray-900 text-lg">{maskCPF(profileData.cpf)}</p>
                 </div>
                 <div className="bg-white/70 p-4 rounded-xl">
                   <p className="text-gray-600 text-sm mb-1">Data de nascimento</p>
-                  <p className="text-gray-900 text-lg">15 de março de 1956</p>
+                  <p className="text-gray-900 text-lg">{formatBirthDate(profileData.birthDate)}</p>
                 </div>
                 <div className="bg-white/70 p-4 rounded-xl">
                   <p className="text-gray-600 text-sm mb-1">E-mail cadastrado</p>
-                  <p className="text-gray-900 text-lg">maria.silva@email.com</p>
+                  <p className="text-gray-900 text-lg">{profileData.email}</p>
                 </div>
                 <div className="bg-white/70 p-4 rounded-xl">
                   <p className="text-gray-600 text-sm mb-1">Sexo</p>
-                  <p className="text-gray-900 text-lg">Feminino</p>
-                </div>
-                <div className="bg-white/70 p-4 rounded-xl">
-                  <p className="text-gray-600 text-sm mb-1">Nome da mãe</p>
-                  <p className="text-gray-900 text-lg">Ana Oliveira Silva</p>
+                  <p className="text-gray-900 text-lg">{profileData.gender}</p>
                 </div>
               </div>
             </div>
@@ -227,7 +484,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
                       <p className="text-gray-900 text-xl">{healthData.bloodType}</p>
                       <div className="flex items-center gap-2 text-gray-500 text-sm mt-2">
                         <Clock className="w-4 h-4" />
-                        <span>Editado em 08/12/2025 às 14:32</span>
+                        <span>{formatLastModified(lastModifiedAt)}</span>
                       </div>
                     </div>
                     <Edit className="w-5 h-5 text-teal-600" />
@@ -253,7 +510,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
                       </div>
                       <div className="flex items-center gap-2 text-gray-500 text-sm mt-2">
                         <Clock className="w-4 h-4" />
-                        <span>Editado em 05/12/2025 às 10:15</span>
+                        <span>{formatLastModified(lastModifiedAt)}</span>
                       </div>
                     </div>
                     <Edit className="w-5 h-5 text-teal-600" />
@@ -273,7 +530,11 @@ export function ProfileTab({ user }: ProfileTabProps) {
                       </div>
                     </div>
                     <button
-                      onClick={() => setHealthData({ ...healthData, organDonor: !healthData.organDonor })}
+                      onClick={async () => {
+                        const next = !healthData.organDonor;
+                        setHealthData({ ...healthData, organDonor: next });
+                        await persistDonorFlag('organ_donor', next);
+                      }}
                       className={`relative w-16 h-8 rounded-full transition-colors ${
                         healthData.organDonor ? 'bg-green-500' : 'bg-gray-300'
                       }`}
@@ -298,7 +559,11 @@ export function ProfileTab({ user }: ProfileTabProps) {
                       </div>
                     </div>
                     <button
-                      onClick={() => setHealthData({ ...healthData, bloodDonor: !healthData.bloodDonor })}
+                      onClick={async () => {
+                        const next = !healthData.bloodDonor;
+                        setHealthData({ ...healthData, bloodDonor: next });
+                        await persistDonorFlag('blood_donor', next);
+                      }}
                       className={`relative w-16 h-8 rounded-full transition-colors ${
                         healthData.bloodDonor ? 'bg-green-500' : 'bg-gray-300'
                       }`}
@@ -326,7 +591,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
                       </div>
                       <div className="flex items-center gap-2 text-gray-500 text-sm">
                         <Clock className="w-4 h-4" />
-                        <span>Editado em 01/12/2025 às 16:45</span>
+                        <span>{formatLastModified(lastModifiedAt)}</span>
                       </div>
                     </div>
                     <Edit className="w-5 h-5 text-teal-600" />
@@ -643,6 +908,223 @@ export function ProfileTab({ user }: ProfileTabProps) {
                     Cancelar
                   </Button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Allergies Modal */}
+      <AnimatePresence>
+        {isEditingHealth && selectedField === 'allergies' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setIsEditingHealth(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-2xl text-gray-900 mb-6">Alergias medicamentosas ou alimentares</h3>
+              <div className="space-y-3 mb-6">
+                {healthData.allergies.map((allergy, idx) => (
+                  <div key={idx} className="flex items-center justify-between bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                    <span className="text-gray-900">{allergy}</span>
+                    <button
+                      onClick={() => removeAllergy(idx)}
+                      className="text-red-600 hover:text-red-700 font-bold"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                onClick={addAllergy}
+                variant="outline"
+                className="w-full mb-4 border-teal-300 text-teal-700"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Adicionar alergia
+              </Button>
+              <Button
+                onClick={async () => {
+                  await persistAllergies(healthData.allergies);
+                  handleSaveHealthData();
+                }}
+                className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 text-white mb-2"
+              >
+                Salvar
+              </Button>
+              <Button
+                onClick={() => setIsEditingHealth(false)}
+                variant="outline"
+                className="w-full border-gray-300 text-gray-700"
+              >
+                Cancelar
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Health Data Modal */}
+      <AnimatePresence>
+        {isEditingHealth && selectedField === 'bloodType' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setIsEditingHealth(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-2xl text-gray-900 mb-6">Tipo sanguíneo e fator RH</h3>
+              <div className="space-y-3 mb-8">
+                {bloodTypeOptions.length > 0 ? (
+                  bloodTypeOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={async () => {
+                        setHealthData({ ...healthData, bloodType: option.label });
+                        const hpId = healthProfileId || (await ensureHealthProfile());
+                        if (hpId) {
+                          await supabase.from('patient_health_profile').update({ blood_type_id: option.id }).eq('id', hpId);
+                        }
+                        handleSaveHealthData();
+                      }}
+                      className={`w-full text-left px-6 py-4 rounded-xl border-2 transition-colors ${
+                        healthData.bloodType === option.label
+                          ? 'border-teal-500 bg-teal-50'
+                          : 'border-gray-200 hover:border-teal-300'
+                      }`}
+                    >
+                      <p className="text-gray-900 text-lg">{option.label}</p>
+                    </button>
+                  ))
+                ) : (
+                  // Fallback to hardcoded list if fetch failed
+                  ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'Não sei'].map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        setHealthData({ ...healthData, bloodType: type });
+                        handleSaveHealthData();
+                      }}
+                      className={`w-full text-left px-6 py-4 rounded-xl border-2 transition-colors ${
+                        healthData.bloodType === type
+                          ? 'border-teal-500 bg-teal-50'
+                          : 'border-gray-200 hover:border-teal-300'
+                      }`}
+                    >
+                      <p className="text-gray-900 text-lg">{type}</p>
+                    </button>
+                  ))
+                )}
+              </div>
+              <Button
+                onClick={() => setIsEditingHealth(false)}
+                variant="outline"
+                className="w-full border-gray-300 text-gray-700"
+              >
+                Cancelar
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Chronic Conditions Modal */}
+      <AnimatePresence>
+        {isEditingHealth && selectedField === 'chronicConditions' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setIsEditingHealth(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-2xl text-gray-900 mb-6">Condições crônicas ou doenças importantes</h3>
+              <div className="space-y-3 mb-8">
+                {allComorbidityOptions.length > 0 ? (
+                  allComorbidityOptions.map((option) => (
+                    <label key={option.id} className="flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-teal-300 transition-colors cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={healthData.chronicConditions.includes(option.name)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            const next = [...healthData.chronicConditions, option.name];
+                            setHealthData({ ...healthData, chronicConditions: next });
+                          } else {
+                            const next = healthData.chronicConditions.filter(c => c !== option.name);
+                            setHealthData({ ...healthData, chronicConditions: next });
+                          }
+                        }}
+                        className="w-5 h-5 rounded accent-teal-600"
+                      />
+                      <span className="text-gray-900 text-lg">{option.name}</span>
+                    </label>
+                  ))
+                ) : (
+                  // Fallback to hardcoded list if fetch failed
+                  ['Diabetes', 'Hipertensão', 'Asma', 'Epilepsia', 'Cardiopatia', 'Obesidade', 'Câncer', 'HIV', 'Hepatite', 'Doença renal crônica'].map((condition) => (
+                    <label key={condition} className="flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-teal-300 transition-colors cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={healthData.chronicConditions.includes(condition)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            const next = [...healthData.chronicConditions, condition];
+                            setHealthData({ ...healthData, chronicConditions: next });
+                          } else {
+                            const next = healthData.chronicConditions.filter(c => c !== condition);
+                            setHealthData({ ...healthData, chronicConditions: next });
+                          }
+                        }}
+                        className="w-5 h-5 rounded accent-teal-600"
+                      />
+                      <span className="text-gray-900 text-lg">{condition}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={async () => {
+                    await persistComorbidities(healthData.chronicConditions);
+                    handleSaveHealthData();
+                  }}
+                  className="flex-1 bg-gradient-to-r from-teal-600 to-cyan-600 text-white"
+                >
+                  Salvar
+                </Button>
+                <Button
+                  onClick={() => setIsEditingHealth(false)}
+                  variant="outline"
+                  className="flex-1 border-gray-300 text-gray-700"
+                >
+                  Cancelar
+                </Button>
               </div>
             </motion.div>
           </motion.div>

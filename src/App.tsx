@@ -31,8 +31,6 @@ import { AppointmentFlow } from './components/AppointmentFlow';
 import { ProfileTab } from './components/ProfileTab';
 import { Toaster } from './components/ui/sonner';
 import Landing from './Landing';
-import { LoginSignup } from './components/LoginSignup';
-import LoginScreen from './components/LoginScreen';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import { useAuth } from './AuthProvider';
@@ -41,14 +39,10 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [appointmentOpen, setAppointmentOpen] = useState(false);
-  const { profile, loading } = useUserProfile()
+  const { profile } = useUserProfile()
   const navigate = useNavigate();
   const location = useLocation();
   const { user: authUser, signOut, loading: authLoading } = useAuth();
-
-  const handleLogin = (_userData: any) => {
-    navigate('/dashboard');
-  };
 
   // Do not block the whole app render while the profile is loading —
   // components will show their own loaders when necessary.
@@ -118,7 +112,6 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route path="/signup" element={<LoginSignup onLogin={handleLogin} />} />
       <Route path="/dashboard" element={
         <ProtectedRoute>
         <div className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">

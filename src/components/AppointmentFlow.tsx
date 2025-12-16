@@ -137,7 +137,7 @@ export function AppointmentFlow({ isOpen, onClose, userName }: AppointmentFlowPr
         return;
       }
 
-      // Create start_datetime and end_datetime (30-minute appointment)
+      // Create start_datetime and end_datetime (30-minute appointment) preserving local time
       const startDateTime = new Date(appointmentData.date!);
       const [hours, minutes] = appointmentData.time.split(':').map(Number);
       startDateTime.setHours(hours, minutes, 0, 0);
@@ -145,14 +145,20 @@ export function AppointmentFlow({ isOpen, onClose, userName }: AppointmentFlowPr
       const endDateTime = new Date(startDateTime);
       endDateTime.setMinutes(endDateTime.getMinutes() + 30);
 
+      // Format without timezone shift (timestamp without time zone safe)
+      const toLocalTimestamp = (d: Date) => {
+        const pad = (v: number) => String(v).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      };
+
       // Insert appointment
       const { error } = await supabase
         .from('appointments')
         .insert({
           doctor_id: appointmentData.doctorId,
           patient_id: profileData.id,
-          start_datetime: startDateTime.toISOString(),
-          end_datetime: endDateTime.toISOString(),
+          start_datetime: toLocalTimestamp(startDateTime),
+          end_datetime: toLocalTimestamp(endDateTime),
           status: 'agendada'
         });
 
