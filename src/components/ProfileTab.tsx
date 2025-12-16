@@ -188,28 +188,48 @@ export function ProfileTab({ user }: ProfileTabProps) {
         }
         setProfileId(userId);
 
-        // Fetch user profile data (full_name, birth_date, gender, cpf, email)
+        // Fetch user profile data (full_name, birth_date, gender, cpf)
         try {
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('full_name, birth_date, gender, cpf, email')
+            .select('full_name, birth_date, gender, cpf')
             .eq('id', userId)
-            .single();
-          
+            .maybeSingle();
+
           if (profileError) {
             console.error('[ProfileTab] Profile fetch error:', profileError);
-          } else if (profile) {
+          }
+
+          const authEmail = auth?.user?.email ?? '-';
+          if (profile) {
             console.log('[ProfileTab] Profile data:', profile);
             setProfileData({
               fullName: profile.full_name || '-',
               birthDate: profile.birth_date || '-',
               gender: profile.gender || '-',
               cpf: profile.cpf || '-',
-              email: profile.email || '-'
+              email: authEmail,
+            });
+          } else {
+            // Fallback to auth user data if profile row doesn't exist yet
+            setProfileData({
+              fullName: auth?.user?.user_metadata?.full_name || user?.name || '-',
+              birthDate: '-',
+              gender: '-',
+              cpf: '-',
+              email: authEmail,
             });
           }
         } catch (e) {
           console.error('[ProfileTab] Cannot fetch profile:', e);
+          const { user: authUser } = auth as any;
+          setProfileData((prev) => ({
+            fullName: authUser?.user_metadata?.full_name || user?.name || prev.fullName || '-',
+            birthDate: prev.birthDate || '-',
+            gender: prev.gender || '-',
+            cpf: prev.cpf || '-',
+            email: authUser?.email || prev.email || '-',
+          }));
         }
 
         // Fetch blood types list (id, type, rh_factor) and build label map: `${type}${rh_factor}`
