@@ -1,4 +1,4 @@
-package com.sempreceub.medly;
+package com.medly.app;
 
 import com.getcapacitor.BridgeActivity;
 

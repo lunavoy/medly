@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Med.ly</string>
-    <string name="title_activity_main">Med.ly</string>
-    <string name="package_name">com.sempreceub.medly</string>
-    <string name="custom_url_scheme">com.sempreceub.medly</string>
+    <string name="app_name">medly</string>
+    <string name="title_activity_main">medly</string>
+    <string name="package_name">com.medly.app</string>
+    <string name="custom_url_scheme">com.medly.app</string>
 </resources>
