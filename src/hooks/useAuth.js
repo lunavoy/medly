@@ -29,7 +29,7 @@ export function useAuth() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${redirectBase}/dashboard`
+        redirectTo: `${redirectBase}/onboarding`
       }
     })
     if (error) console.error('Erro no login:', error)
