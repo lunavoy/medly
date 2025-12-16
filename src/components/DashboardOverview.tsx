@@ -67,59 +67,24 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
 
   if (loadingAppts || loadingExams || loadingAge) return <div>Carregando...</div>;
 
-  /*
-  const healthMetrics = [
-    {
-      label: 'Pressão Arterial',
-      value: '120/80',
-      status: 'normal',
-      icon: Heart,
-      trend: 'stable'
-    },
-    {
-      label: 'Frequência Cardíaca',
-      value: '72 bpm',
-      status: 'normal',
-      icon: Heart,
-      trend: 'down'
-    },
-    {
-      label: 'Glicose',
-      value: '95 mg/dL',
-      status: 'normal',
-      icon: TrendingUp,
-      trend: 'stable'
-    },
-    {
-      label: 'Peso',
-      value: '68 kg',
-      status: 'normal',
-      icon: TrendingUp,
-      trend: 'down'
-    }
-  ];
-  */
+  const getStatusColor = (status: string) => {
+    const statusLower = status?.toLowerCase() || '';
+    if (statusLower.includes('pendente')) return 'bg-red-100 text-red-700';
+    if (statusLower.includes('análise') || statusLower.includes('analise')) return 'bg-yellow-100 text-yellow-700';
+    if (statusLower.includes('feito') || statusLower.includes('resultado') || statusLower.includes('normal')) return 'bg-green-100 text-green-700';
+    if (statusLower.includes('avaliado')) return 'bg-blue-100 text-blue-700';
+    return 'bg-gray-100 text-gray-700';
+  };
 
-  const recentExams = [
-    {
-      name: 'Hemograma Completo',
-      date: '15/09/2024',
-      status: 'Resultados Normais',
-      urgent: false
-    },
-    {
-      name: 'Eletrocardiograma',
-      date: '10/09/2024',
-      status: 'Pendente Revisão',
-      urgent: true
-    },
-    {
-      name: 'Raio-X Tórax',
-      date: '05/09/2024',
-      status: 'Resultados Normais',
-      urgent: false
+  const formatExamDate = (dateStr: string) => {
+    if (!dateStr) return '—';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('pt-BR');
+    } catch {
+      return dateStr;
     }
-  ];
+  };
 
   return (
     <div className="space-y-8">
@@ -242,9 +207,25 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="p-4 bg-cyan-50 rounded-lg text-center text-gray-600">
-            Nenhum exame feito recentemente
-          </div>
+          {exams && exams.length > 0 ? (
+            <div className="space-y-3">
+              {exams.map((exam: any, index: number) => (
+                <div key={index} className="flex items-center justify-between p-4 bg-cyan-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900">{exam.name || exam.exam_name || 'Exame'}</p>
+                    <p className="text-sm text-gray-600">{formatExamDate(exam.date || exam.created_at || '')}</p>
+                    <p className={`text-xs font-semibold mt-2 px-2 py-1 rounded w-fit ${getStatusColor(exam.status)}`}>
+                      {exam.status || 'Pendente'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 bg-cyan-50 rounded-lg text-center text-gray-600">
+              Nenhum exame feito recentemente
+            </div>
+          )}
         </CardContent>
       </Card>
 

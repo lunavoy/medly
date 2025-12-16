@@ -52,11 +52,19 @@ export function AppointmentStep3({
         return;
       }
 
-      console.log('Fetching slots for:', selectedDoctor, 'Date:', selectedDate);
+      // Convert string date to Date object if necessary
+      const dateObj = selectedDate instanceof Date ? selectedDate : new Date(selectedDate as any);
+      if (isNaN(dateObj.getTime())) {
+        console.error('Invalid date:', selectedDate);
+        setLoading(false);
+        return;
+      }
+
+      console.log('Fetching slots for:', selectedDoctor, 'Date:', dateObj);
 
       try {
         // Get doctor's schedule for this day of week
-        const dayOfWeekNumber = selectedDate.getDay();
+        const dayOfWeekNumber = dateObj.getDay();
         const { data: scheduleData, error: scheduleError } = await supabase
           .from('doctor_schedule')
           .select('start_time, end_time')
@@ -78,7 +86,7 @@ export function AppointmentStep3({
         console.log('Generated slots:', slots);
 
         // Get booked appointments for this date
-        const dateStr = selectedDate.toISOString().split('T')[0];
+        const dateStr = dateObj.toISOString().split('T')[0];
         const { data: appointments, error: appointmentError } = await supabase
           .from('appointments')
           .select('start_datetime')
@@ -119,7 +127,7 @@ export function AppointmentStep3({
 
         // Remove past times if it's today
         const now = new Date();
-        const isToday = selectedDate.toDateString() === now.toDateString();
+        const isToday = dateObj.toDateString() === now.toDateString();
         
         if (isToday) {
           slots.forEach(slot => {
@@ -167,8 +175,11 @@ export function AppointmentStep3({
     return slots;
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('pt-BR', { 
+  const formatDate = (date: Date | string | null) => {
+    if (!date) return '—';
+    const dateObj = date instanceof Date ? date : new Date(date);
+    if (isNaN(dateObj.getTime())) return '—';
+    return dateObj.toLocaleDateString('pt-BR', { 
       weekday: 'long', 
       day: 'numeric', 
       month: 'long', 

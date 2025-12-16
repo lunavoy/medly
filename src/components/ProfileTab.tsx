@@ -798,7 +798,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
                 <UserCheck className="w-8 h-8 text-blue-600" />
                 <div>
                   <p className="text-gray-900 text-lg mb-1">Liberar meu perfil completo para o médico</p>
-                  <p className="text-gray-600 text-sm">Dr. Paulo Juvenal Alves pode acessar todo seu histórico</p>
+                  <p className="text-gray-600 text-sm">Os médicos poderão ter acesso ao seu prontuário digital</p>
                   <p className="text-gray-500 text-sm mt-1">Última liberação: 01/12/2025 às 10:00</p>
                 </div>
               </div>

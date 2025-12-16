@@ -28,12 +28,13 @@ export function AppointmentStep4({ data, onUpdate, onNext, onBack }: Appointment
   const { profile } = useUserProfile();
   useEffect(() => {
     if (profile) {
-      onUpdate({ patientName: profile.full_name, patientCPF: profile.cpf });
+      onUpdate({ patientName: profile.full_name || '', patientCPF: profile.cpf || '' });
     }
   }, [profile]);
+  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (data.reason.trim()) {
+    if (data.reason && data.reason.trim()) {
       onNext();
     }
   };
@@ -60,7 +61,7 @@ export function AppointmentStep4({ data, onUpdate, onNext, onBack }: Appointment
               </Label>
               <Input
                 id="patientName"
-                value={data.patientName}
+                value={data.patientName || ''}
                 disabled
                 className="bg-gray-50 text-lg p-6 border-2"
               />
@@ -77,7 +78,7 @@ export function AppointmentStep4({ data, onUpdate, onNext, onBack }: Appointment
               </Label>
               <Input
                 id="patientCPF"
-                value={data.patientCPF}
+                value={data.patientCPF || ''}
                 disabled
                 className="bg-gray-50 text-lg p-6 border-2"
               />
@@ -92,7 +93,7 @@ export function AppointmentStep4({ data, onUpdate, onNext, onBack }: Appointment
               <Input
                 id="phone"
                 type="tel"
-                value={data.phone}
+                value={data.phone || ''}
                 onChange={(e) => onUpdate({ phone: e.target.value })}
                 className="text-lg p-6 border-2 border-teal-200 focus:border-teal-500"
                 placeholder="(11) 98765-4321"
@@ -117,7 +118,7 @@ export function AppointmentStep4({ data, onUpdate, onNext, onBack }: Appointment
               </div>
               <Switch
                 id="isReturn"
-                checked={data.isReturn}
+                checked={data.isReturn || false}
                 onCheckedChange={(checked) => onUpdate({ isReturn: checked })}
                 className="data-[state=checked]:bg-teal-600"
               />
@@ -147,7 +148,7 @@ export function AppointmentStep4({ data, onUpdate, onNext, onBack }: Appointment
               </Label>
               <Textarea
                 id="reason"
-                value={data.reason}
+                value={data.reason || ''}
                 onChange={(e) => onUpdate({ reason: e.target.value })}
                 className="text-lg p-4 border-2 border-teal-200 focus:border-teal-500 min-h-32"
                 placeholder="Ex: dor torácica, retorno de exame, check-up preventivo..."
@@ -171,7 +172,7 @@ export function AppointmentStep4({ data, onUpdate, onNext, onBack }: Appointment
           </Button>
           <Button
             type="submit"
-            disabled={!data.reason.trim()}
+            disabled={!data.reason || !data.reason.trim()}
             className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white px-8 py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Continuar

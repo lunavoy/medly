@@ -65,7 +65,21 @@ export function AppointmentFlow({ isOpen, onClose, userName }: AppointmentFlowPr
       if (savedData) {
         try {
           const parsedData = JSON.parse(savedData);
-          setAppointmentData(parsedData);
+          // Ensure all string fields have default empty string if missing
+          setAppointmentData({
+            specialty: parsedData.specialty || '',
+            specialtyId: parsedData.specialtyId || '',
+            doctor: parsedData.doctor || '',
+            doctorId: parsedData.doctorId || '',
+            date: parsedData.date ? new Date(parsedData.date) : null,
+            time: parsedData.time || '',
+            patientName: parsedData.patientName || '',
+            patientCPF: parsedData.patientCPF || '',
+            phone: parsedData.phone || '',
+            reason: parsedData.reason || '',
+            isReturn: parsedData.isReturn || false,
+            lastVisitDate: parsedData.lastVisitDate || '',
+          });
         } catch (e) {
           console.error('Error parsing saved appointment data:', e);
         }
@@ -120,17 +134,21 @@ export function AppointmentFlow({ isOpen, onClose, userName }: AppointmentFlowPr
     try {
       // Get patient ID from profile
       const { data: { user: authUser } } = await supabase.auth.getUser();
+      console.log('Auth user:', authUser);
+      
       if (!authUser) {
         toast.error('Usuário não autenticado');
         return;
       }
 
       // Get patient_id from profiles table
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id')
         .eq('id', authUser.id)
-        .single();
+        .maybeSingle();
+
+      console.log('Profile fetch - Data:', profileData, 'Error:', profileError);
 
       if (!profileData) {
         toast.error('Perfil não encontrado');
@@ -152,7 +170,7 @@ export function AppointmentFlow({ isOpen, onClose, userName }: AppointmentFlowPr
       };
 
       // Insert appointment
-      const { error } = await supabase
+      const { data: insertedData, error } = await supabase
         .from('appointments')
         .insert({
           doctor_id: appointmentData.doctorId,
@@ -160,14 +178,18 @@ export function AppointmentFlow({ isOpen, onClose, userName }: AppointmentFlowPr
           start_datetime: toLocalTimestamp(startDateTime),
           end_datetime: toLocalTimestamp(endDateTime),
           status: 'agendada'
-        });
+        })
+        .select();
+
+      console.log('Insert response - Data:', insertedData, 'Error:', error);
 
       if (error) {
         console.error('Erro ao salvar agendamento:', error);
-        toast.error('Erro ao agendar consulta');
+        toast.error(`Erro ao agendar consulta: ${error.message}`);
         return;
       }
 
+      console.log('Agendamento salvo com sucesso:', insertedData);
       setCurrentStep(7);
       toast.success('Consulta agendada com sucesso!');
     } catch (error) {

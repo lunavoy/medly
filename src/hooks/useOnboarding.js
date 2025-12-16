@@ -31,18 +31,26 @@ export function useOnboarding() {
         }
 
         // Fetch profile data
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('full_name, birth_date, gender, cpf, email')
           .eq('id', userId)
-          .single()
+          .maybeSingle()
+
+        if (profileError) {
+          console.error('[ONBOARDING] Profile fetch error:', profileError)
+        }
 
         // Fetch health profile data
-        const { data: healthProfile } = await supabase
+        const { data: healthProfile, error: healthError } = await supabase
           .from('patient_health_profile')
           .select('blood_type_id, allergies, organ_donor, blood_donor')
           .eq('profile_id', userId)
-          .single()
+          .maybeSingle()
+
+        if (healthError) {
+          console.error('[ONBOARDING] Health profile fetch error:', healthError)
+        }
 
         const hasCompleteProfile = profile?.full_name && profile?.cpf && profile?.birth_date
         
@@ -60,7 +68,7 @@ export function useOnboarding() {
         if (healthProfile) {
           setFormData((prev) => ({
             ...prev,
-            allergies: healthProfile.allergies || '',
+            allergies: healthProfile.alergies || '',
             organDonor: healthProfile.organ_donor || false,
             bloodDonor: healthProfile.blood_donor || false
           }))
@@ -69,7 +77,7 @@ export function useOnboarding() {
         setIsComplete(!!hasCompleteProfile)
         setLoading(false)
       } catch (err) {
-        console.error('Erro ao carregar dados:', err)
+        console.error('[ONBOARDING] Error loading data:', err)
         setLoading(false)
       }
     }
@@ -87,8 +95,8 @@ export function useOnboarding() {
         throw new Error('User not authenticated')
       }
 
-      // Update or insert profile
-      await supabase
+      // Update or insert profile (without updated_at column since it doesn't exist)
+      const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: userId,
@@ -96,46 +104,63 @@ export function useOnboarding() {
           birth_date: formData.birthDate,
           gender: formData.gender,
           cpf: formData.cpf,
-          email: formData.email,
-          updated_at: new Date().toISOString()
+          email: formData.email
         }, { onConflict: 'id' })
+      
+      if (profileError) {
+        console.error('[ONBOARDING] Profile save failed:', profileError)
+        throw profileError
+      }
 
       // Get or create health profile
-      const { data: existingHP } = await supabase
+      const { data: existingHP, error: hpCheckError } = await supabase
         .from('patient_health_profile')
         .select('id')
         .eq('profile_id', userId)
-        .single()
+        .maybeSingle()
+      
+      if (hpCheckError) {
+        console.error('[ONBOARDING] Health profile check error:', hpCheckError)
+      }
 
-      if (existingHP) {
+      if (existingHP?.id) {
         // Update existing health profile
-        await supabase
+        const { error: updateError } = await supabase
           .from('patient_health_profile')
           .update({
-            allergies: formData.allergies,
-            organ_donor: formData.organDonor,
-            blood_donor: formData.bloodDonor,
-            last_modified_at: new Date().toISOString()
-          })
-          .eq('id', existingHP.id)
-      } else {
-        // Create new health profile
-        await supabase
-          .from('patient_health_profile')
-          .insert({
-            profile_id: userId,
-            allergies: formData.allergies,
+            alergies: formData.allergies,
             organ_donor: formData.organDonor,
             blood_donor: formData.bloodDonor
           })
+          .eq('id', existingHP.id)
+
+        if (updateError) {
+          console.error('[ONBOARDING] Health profile update failed:', updateError)
+          throw updateError
+        }
+      } else {
+        // Create new health profile
+        const { error: insertError } = await supabase
+          .from('patient_health_profile')
+          .insert({
+            profile_id: userId,
+            alergies: formData.allergies,
+            organ_donor: formData.organDonor,
+            blood_donor: formData.bloodDonor
+          })
+
+        if (insertError) {
+          console.error('[ONBOARDING] Health profile insert failed:', insertError)
+          throw insertError
+        }
       }
 
       setSaving(false)
       return true
     } catch (err) {
-      console.error('Erro ao salvar dados:', err)
+      console.error('[ONBOARDING] Error saving data:', err)
       setSaving(false)
-      return false
+      throw err
     }
   }
 

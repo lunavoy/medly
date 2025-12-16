@@ -30,8 +30,14 @@ export const AuthProvider: React.FC<any> = ({ children }) => {
 
     init();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
       setUser(session?.user ?? null);
+
+      // When user signs in (either with password or OAuth), ensure profile exists
+      if (event === 'SIGNED_IN' && session?.user) {
+        await ensureProfileExists(session.user);
+      }
     });
 
     return () => {
@@ -50,6 +56,40 @@ export const AuthProvider: React.FC<any> = ({ children }) => {
 
   const signInWithGoogle = async () => {
     return supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/dashboard` } });
+  };
+
+  const ensureProfileExists = async (authUser: any) => {
+    try {
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      // If profile already exists, do nothing
+      if (existingProfile) {
+        console.log('[AUTH] Profile already exists for user:', authUser.id);
+        return;
+      }
+
+      // Create profile for new user (from OAuth or email signup)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authUser.id,
+          full_name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Usuário',
+          email: authUser.email,
+          // Add other default fields as needed
+        });
+
+      if (profileError) {
+        console.error('[AUTH] Error creating profile:', profileError);
+      } else {
+        console.log('[AUTH] Profile created successfully for user:', authUser.id);
+      }
+    } catch (error) {
+      console.error('[AUTH] Error ensuring profile exists:', error);
+    }
   };
 
   const signOut = async () => {

@@ -33,7 +33,10 @@ import { Toaster } from './components/ui/sonner';
 import Landing from './Landing';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import OnboardingPage from './pages/OnboardingPage';
+import DoctorLoginPage from './pages/DoctorLoginPage';
+import DoctorDashboardPage from './pages/DoctorDashboardPage';
+import DoctorPatientProfilePage from './pages/DoctorPatientProfilePage';
+import DoctorProtectedRoute from './components/DoctorProtectedRoute';
 import { useAuth } from './AuthProvider';
 
 export default function App() {
@@ -92,7 +95,7 @@ export default function App() {
       case 'overview':
         return <DashboardOverview user={profile} />;
       case 'doctors':
-        return <DoctorsDirectory />;
+        return <DoctorsDirectory onOpenAppointmentFlow={() => setAppointmentOpen(true)} />;
       case 'exams':
         return <ExamsTests />;
       case 'fitness':
@@ -113,11 +116,9 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route path="/onboarding" element={
-        <ProtectedRoute>
-          <OnboardingPage />
-        </ProtectedRoute>
-      } />
+      <Route path="/doctor/login" element={<DoctorLoginPage />} />
+      <Route path="/doctor/dashboard" element={<DoctorProtectedRoute><DoctorDashboardPage /></DoctorProtectedRoute>} />
+      <Route path="/doctor/patients/:id" element={<DoctorProtectedRoute><DoctorPatientProfilePage /></DoctorProtectedRoute>} />
       <Route path="/dashboard" element={
         <ProtectedRoute>
         <div className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">

@@ -31,8 +31,12 @@ export function AppointmentStep5({ data, onConfirm, onBack }: AppointmentStep5Pr
       data.patientCPF = profile.cpf;
     }
   }, [profile]);
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('pt-BR', { 
+  const formatDate = (date: Date | null) => {
+    if (!date) return '—';
+    // Handle case where date might be a string
+    const dateObj = date instanceof Date ? date : new Date(date);
+    if (isNaN(dateObj.getTime())) return '—';
+    return dateObj.toLocaleDateString('pt-BR', { 
       weekday: 'long', 
       day: 'numeric', 
       month: 'long', 

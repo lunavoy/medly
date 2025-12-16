@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { motion } from 'motion/react'
 import { Card, CardContent } from '../components/ui/card'
 import { Button } from '../components/ui/button'
@@ -10,19 +11,12 @@ export default function OnboardingPage() {
   const navigate = useNavigate()
   const { loading, saving, isComplete, formData, setFormData, saveData } = useOnboarding()
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
-        <div className="w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
-
   // Se onboarding já foi completado, ir direto para dashboard
-  if (isComplete && !formData.cpf) {
-    navigate('/dashboard', { replace: true })
-    return null
-  }
+  useEffect(() => {
+    if (!loading && isComplete) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [isComplete, loading, navigate])
 
   const handleSave = async () => {
     if (!formData.fullName || !formData.cpf) {
@@ -37,6 +31,14 @@ export default function OnboardingPage() {
     } else {
       toast.error('Erro ao salvar dados')
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
+        <div className="w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (

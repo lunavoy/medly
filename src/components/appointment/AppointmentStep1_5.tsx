@@ -44,7 +44,11 @@ export function AppointmentStep1_5({
       console.log('Doctors data:', data);
       console.log('Total doctors found:', data?.length || 0);
       
-      if (!error && data) setDoctors(data as Doctor[]);
+      if (!error && data) {
+        const keyFor = (doc: Doctor) => `${String(doc.id)}|${doc.full_name?.toLowerCase?.() || ''}`;
+        const deduped = Array.from(new Map((data as Doctor[]).map((doc) => [keyFor(doc), doc])).values());
+        setDoctors(deduped);
+      }
       setLoading(false);
     };
 

@@ -20,8 +20,11 @@ export function useUserProfile() {
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
+      if (error) {
+        console.error('Error fetching profile:', error)
+      }
       if (data) setProfile(data)
       setLoading(false)
     }
@@ -99,16 +102,25 @@ export function useExams() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
     const fetchExams = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('exams')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('patient_id', user.id)
         .order('date', { ascending: false })
 
-      if (data) setExams(data)
+      if (error) {
+        console.error('Error fetching exams:', error)
+        // Table might not exist, set empty array
+        setExams([])
+      } else if (data) {
+        setExams(data)
+      }
       setLoading(false)
     }
 
@@ -124,17 +136,25 @@ export function useActivities() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
     const fetchActivities = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('activities')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('patient _id', user.id)
         .order('date', { ascending: false })
         .limit(30) // últimos 30 dias
 
-      if (data) setActivities(data)
+      if (error) {
+        console.error('Error fetching activities:', error)
+        setActivities([])
+      } else if (data) {
+        setActivities(data)
+      }
       setLoading(false)
     }
 
