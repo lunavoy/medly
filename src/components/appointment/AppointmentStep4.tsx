@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useUserProfile } from '../../hooks/useSupabase';
 import { User, Phone, FileText, Calendar } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
@@ -24,6 +25,12 @@ interface AppointmentStep4Props {
 }
 
 export function AppointmentStep4({ data, onUpdate, onNext, onBack }: AppointmentStep4Props) {
+  const { profile } = useUserProfile();
+  useEffect(() => {
+    if (profile) {
+      onUpdate({ patientName: profile.full_name, patientCPF: profile.cpf });
+    }
+  }, [profile]);
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (data.reason.trim()) {

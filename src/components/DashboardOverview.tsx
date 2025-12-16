@@ -1,40 +1,73 @@
-import React, { useEffect } from 'react';
-import { Heart, Calendar, FileText, TrendingUp, Clock, Shield } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Heart, Calendar, FileText, Clock, Shield, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { useAppointments, useExams } from '../hooks/useSupabase';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase/client';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-
-interface User {
-  name: string;
-  age: number;
-  healthPlan: string;
-  memberSince: string;
-}
+import { AppointmentDetailsModal } from './AppointmentDetailsModal';
 
 interface DashboardOverviewProps {
-  user: User;
+  user?: any;
 }
 
 export function DashboardOverview({ user }: DashboardOverviewProps) {
   const navigate = useNavigate();
-  const upcomingAppointments = [
-    {
-      doctor: 'Dr. Ana Santos',
-      specialty: 'Cardiologia',
-      date: 'Hoje, 14:30',
-      type: 'Consulta de rotina'
-    },
-    {
-      doctor: 'Dr. João Silva',
-      specialty: 'Oftalmologia',
-      date: 'Amanhã, 10:00',
-      type: 'Exame de vista'
-    }
-  ];
+  const { appointments, loading: loadingAppts } = useAppointments();
+  const { exams, loading: loadingExams } = useExams();
+  const [ageInfo, setAgeInfo] = useState<{ full_name?: string; age?: number } | null>(null);
+  const [loadingAge, setLoadingAge] = useState(true);
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
+  useEffect(() => {
+    const fetchAge = async () => {
+      if (!user) {
+        // fetch first available record as fallback
+        const { data } = await supabase.from('age_of_user').select('full_name, age').limit(1).maybeSingle();
+        setAgeInfo(data ?? null);
+        setLoadingAge(false);
+        return;
+      }
+
+      const name = user?.full_name ?? user?.name;
+      if (!name) {
+        setLoadingAge(false);
+        return;
+      }
+
+      const { data } = await supabase.from('age_of_user').select('full_name, age').eq('full_name', name).maybeSingle();
+      setAgeInfo(data ?? null);
+      setLoadingAge(false);
+    };
+
+    fetchAge();
+  }, [user]);
+
+  const formatAppointmentDate = (startDatetime: string) => {
+    const date = new Date(startDatetime);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const appointmentDate = new Date(date);
+    appointmentDate.setHours(0, 0, 0, 0);
+
+    if (appointmentDate.getTime() === today.getTime()) {
+      return 'Hoje';
+    }
+
+    return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
+  };
+
+  const formatAppointmentTime = (startDatetime: string) => {
+    const date = new Date(startDatetime);
+    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  if (loadingAppts || loadingExams || loadingAge) return <div>Carregando...</div>;
+
+  /*
   const healthMetrics = [
     {
       label: 'Pressão Arterial',
@@ -65,6 +98,7 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
       trend: 'down'
     }
   ];
+  */
 
   const recentExams = [
     {
@@ -93,7 +127,7 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card className="border-teal-100">
           <CardHeader className="pb-4">
-            <CardTitle className="text-2xl text-gray-900">Bem-vinda, {user.name}!</CardTitle>
+            <CardTitle className="text-2xl text-gray-900">Bem-vindo, {user?.full_name || user?.name || 'usuário'}!</CardTitle>
             <p className="text-lg text-gray-600">Como está se sentindo hoje?</p>
           </CardHeader>
           <CardContent>
@@ -104,11 +138,11 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
                 className="w-20 h-20 rounded-full object-cover"
               />
               <div>
-                <p className="text-lg font-medium text-gray-900">{user.age} anos</p>
-                <p className="text-base text-gray-600">Membro desde {user.memberSince}</p>
+                <p className="text-lg font-medium text-gray-900">{ageInfo?.age ?? user?.age ?? '—'} anos</p>
+                <p className="text-sm text-gray-500">Membro desde {user?.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR').replace(/\//g, '/') : (user?.memberSince || user?.member_since || '—')}</p>
                 <Badge className="mt-2 bg-teal-100 text-teal-700 hover:bg-teal-200">
                   <Shield className="w-4 h-4 mr-1" />
-                  {user.healthPlan}
+                  {user?.healthPlan || user?.health_plan}
                 </Badge>
               </div>
             </div>
@@ -117,27 +151,77 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
 
         <Card className="border-cyan-100">
           <CardHeader>
-            <CardTitle className="text-xl text-gray-900 flex items-center">
-              <Calendar className="w-6 h-6 mr-3 text-cyan-600" />
-              Próximas Consultas
+            <CardTitle className="text-xl text-gray-900 flex items-center justify-between">
+              <div className="flex items-center">
+                <Calendar className="w-6 h-6 mr-3 text-cyan-600" />
+                Próximas Consultas
+              </div>
+              <span className="text-base font-semibold text-cyan-700">{appointments?.length ?? 0}</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {upcomingAppointments.map((appointment, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-cyan-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">{appointment.doctor}</p>
-                  <p className="text-base text-gray-600">{appointment.specialty}</p>
-                  <p className="text-sm text-gray-500">{appointment.type}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium text-cyan-700">{appointment.date}</p>
-                  <Button size="sm" className="mt-2 bg-cyan-600 hover:bg-cyan-700">
-                    Ver Detalhes
-                  </Button>
-                </div>
+            {appointments && appointments.length > 0 ? (
+              appointments.map((appointment: any, index: number) => {
+                const prefix = appointment.doctor?.gender === 'M' ? 'Dr.' : 'Dra.';
+                
+                const getStatusColor = (status: string) => {
+                  switch (status) {
+                    case 'agendada':
+                      return 'bg-blue-100 text-blue-700';
+                    case 'confirmada':
+                      return 'bg-green-100 text-green-700';
+                    case 'cancelada':
+                      return 'bg-red-100 text-red-700';
+                    default:
+                      return 'bg-gray-100 text-gray-700';
+                  }
+                };
+
+                const getStatusLabel = (status: string) => {
+                  const labels: Record<string, string> = {
+                    agendada: 'Agendada',
+                    confirmada: 'Confirmada',
+                    cancelada: 'Cancelada',
+                  };
+                  return labels[status] || status;
+                };
+
+                return (
+                  <div key={index} className="flex items-center justify-between p-4 bg-cyan-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {prefix} {appointment.doctor?.full_name || 'Médico'}
+                      </p>
+                      <p className="text-base text-gray-600">
+                        {appointment.doctor?.specialty_id?.specialty || 'Especialidade'}
+                      </p>
+                      <p className={`text-xs font-semibold mt-2 px-2 py-1 rounded w-fit ${getStatusColor(appointment.status)}`}>
+                        {getStatusLabel(appointment.status)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium text-cyan-700">
+                        {formatAppointmentDate(appointment.start_datetime)}, {formatAppointmentTime(appointment.start_datetime)}
+                      </p>
+                      <Button
+                        size="sm"
+                        className="mt-2 bg-cyan-600 hover:bg-cyan-700"
+                        onClick={() => {
+                          setSelectedAppointment(appointment);
+                          setModalOpen(true);
+                        }}
+                      >
+                        Ver Detalhes
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-4 bg-cyan-50 rounded-lg text-center text-gray-600">
+                Nenhuma consulta agendada
               </div>
-            ))}
+            )}
           </CardContent>
         </Card>
       </div>
@@ -151,28 +235,12 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {healthMetrics.map((metric, index) => {
-              const Icon = metric.icon;
-              return (
-                <div key={index} className="bg-gradient-to-br from-teal-50 to-cyan-50 p-6 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <Icon className="w-8 h-8 text-teal-600" />
-                    <Badge 
-                      className={`${
-                        metric.status === 'normal' 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-yellow-100 text-yellow-700'
-                      }`}
-                    >
-                      {metric.status === 'normal' ? 'Normal' : 'Atenção'}
-                    </Badge>
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-1">{metric.label}</h3>
-                  <p className="text-2xl font-semibold text-teal-700">{metric.value}</p>
-                </div>
-              );
-            })}
+          <div className="p-6 bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg flex items-center justify-between">
+            <div>
+              <p className="text-lg font-medium text-gray-900">Integração com Google Fit em breve</p>
+              <p className="text-sm text-gray-600">Sincronize seus dados de atividade diretamente do Google Fit.</p>
+            </div>
+            <Settings className="w-10 h-10 text-teal-600" />
           </div>
         </CardContent>
       </Card>
@@ -180,59 +248,35 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
       {/* Recent Exams */}
       <Card className="border-cyan-100">
         <CardHeader>
-          <CardTitle className="text-xl text-gray-900 flex items-center">
-            <FileText className="w-6 h-6 mr-3 text-cyan-600" />
-            Exames Recentes
+          <CardTitle className="text-xl text-gray-900 flex items-center justify-between">
+            <div className="flex items-center">
+              <FileText className="w-6 h-6 mr-3 text-cyan-600" />
+              Exames Recentes
+            </div>
+            <span className="text-base font-semibold text-cyan-700">{exams?.length ?? 0}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {recentExams.map((exam, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
-                <div className="flex items-center space-x-4">
-                  <div className={`w-4 h-4 rounded-full ${
-                    exam.urgent ? 'bg-red-500' : 'bg-green-500'
-                  }`}></div>
-                  <div>
-                    <p className="font-medium text-gray-900">{exam.name}</p>
-                    <p className="text-base text-gray-600">{exam.date}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <Badge className={`${
-                    exam.urgent 
-                      ? 'bg-red-100 text-red-700' 
-                      : 'bg-green-100 text-green-700'
-                  }`}>
-                    {exam.status}
-                  </Badge>
-                  <div className="mt-2">
-                    <Button size="sm" variant="outline" className="border-cyan-300 text-cyan-700 hover:bg-cyan-50">
-                      Ver Resultado
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="p-4 bg-cyan-50 rounded-lg text-center text-gray-600">
+            Nenhum exame feito recentemente
           </div>
         </CardContent>
       </Card>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Button className="h-20 text-lg bg-teal-600 hover:bg-teal-700 flex items-center justify-center space-x-3">
-          <Calendar className="w-6 h-6" />
-          <span>Agendar Consulta</span>
-        </Button>
-        <Button className="h-20 text-lg bg-cyan-600 hover:bg-cyan-700 flex items-center justify-center space-x-3">
-          <FileText className="w-6 h-6" />
-          <span>Ver Exames</span>
-        </Button>
-        <Button className="h-20 text-lg bg-blue-600 hover:bg-blue-700 flex items-center justify-center space-x-3">
-          <Heart className="w-6 h-6" />
-          <span>Dados de Saúde</span>
-        </Button>
-      </div>
+      {selectedAppointment && (
+        <AppointmentDetailsModal
+          appointment={selectedAppointment}
+          isOpen={modalOpen}
+          onClose={() => {
+            setModalOpen(false);
+            setSelectedAppointment(null);
+          }}
+          onStatusChange={() => {
+            // Refresh appointments by re-rendering
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }

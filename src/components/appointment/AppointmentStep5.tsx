@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useUserProfile } from '../../hooks/useSupabase';
 import { Calendar, Clock, User, FileText, Stethoscope, Bell, Edit } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
@@ -22,6 +23,14 @@ interface AppointmentStep5Props {
 }
 
 export function AppointmentStep5({ data, onConfirm, onBack }: AppointmentStep5Props) {
+  const { profile } = useUserProfile();
+  useEffect(() => {
+    if (profile) {
+      // Ensure summary shows up-to-date profile fields
+      data.patientName = profile.full_name;
+      data.patientCPF = profile.cpf;
+    }
+  }, [profile]);
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('pt-BR', { 
       weekday: 'long', 

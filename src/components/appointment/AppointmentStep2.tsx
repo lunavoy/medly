@@ -1,17 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
+import { supabase } from '../../supabase/client';
 
 interface AppointmentStep2Props {
+  selectedDoctor: string;
+  selectedDoctorId: string | number;
   selectedDate: Date | null;
   onSelect: (date: Date) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-export function AppointmentStep2({ selectedDate, onSelect, onNext, onBack }: AppointmentStep2Props) {
+type DoctorSchedule = {
+  weekday: number;
+  start_time: string;
+  end_time: string;
+};
+
+export function AppointmentStep2({ selectedDoctor, selectedDoctorId, selectedDate, onSelect, onNext, onBack }: AppointmentStep2Props) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [doctorSchedule, setDoctorSchedule] = useState<DoctorSchedule[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch doctor's schedule
+  useEffect(() => {
+    const fetchDoctorSchedule = async () => {
+      console.log('Fetching schedule for doctor ID:', selectedDoctorId);
+      
+      const { data, error } = await supabase
+        .from('doctor_schedule')
+        .select('weekday, start_time, end_time')
+        .eq('doctor_id', selectedDoctorId);
+
+      console.log('Schedule error:', error);
+      console.log('Schedule data:', data);
+      
+      if (!error && data) setDoctorSchedule(data as DoctorSchedule[]);
+      setLoading(false);
+    };
+
+    if (selectedDoctorId) fetchDoctorSchedule();
+  }, [selectedDoctorId]);
 
   // Generate calendar days
   const generateCalendarDays = () => {
@@ -40,17 +71,20 @@ export function AppointmentStep2({ selectedDate, onSelect, onNext, onBack }: App
   const days = generateCalendarDays();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const maxDate = new Date(today);
-  maxDate.setDate(maxDate.getDate() + 45); // Next 45 days
 
   const isDateAvailable = (date: Date | null) => {
     if (!date) return false;
     const dateOnly = new Date(date);
     dateOnly.setHours(0, 0, 0, 0);
     
-    // Only available for next 45 days and not on weekends
-    const dayOfWeek = date.getDay();
-    return dateOnly >= today && dateOnly <= maxDate && dayOfWeek !== 0 && dayOfWeek !== 6;
+    // Cannot select today or past dates
+    if (dateOnly <= today) return false;
+
+    // Check if doctor works on this day of week
+    const dayOfWeekNumber = date.getDay();
+    const hasSchedule = doctorSchedule.some(schedule => Number(schedule.weekday) === dayOfWeekNumber);
+    
+    return hasSchedule;
   };
 
   const isDateSelected = (date: Date | null) => {
@@ -91,95 +125,97 @@ export function AppointmentStep2({ selectedDate, onSelect, onNext, onBack }: App
           Selecione a data da consulta
         </h3>
         <p className="text-lg text-gray-600">
-          Disponível para os próximos 45 dias
+          {selectedDoctor}
         </p>
       </div>
 
-      <Card>
-        <CardContent className="p-6">
-          {/* Calendar Header */}
-          <div className="flex items-center justify-between mb-6">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrevMonth}
-              className="text-teal-600 border-teal-300"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <h4 className="text-xl font-semibold text-gray-900 capitalize">
-              {monthName}
-            </h4>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleNextMonth}
-              className="text-teal-600 border-teal-300"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </Button>
-          </div>
-
-          {/* Week Days */}
-          <div className="grid grid-cols-7 gap-2 mb-2">
-            {weekDays.map((day) => (
-              <div
-                key={day}
-                className="text-center text-sm font-semibold text-gray-600 p-2"
+      {loading ? (
+        <div className="text-center py-8">
+          <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-6">
+            {/* Calendar Header */}
+            <div className="flex items-center justify-between mb-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrevMonth}
+                className="text-teal-600 border-teal-300"
               >
-                {day}
-              </div>
-            ))}
-          </div>
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+              <h4 className="text-xl font-semibold text-gray-900 capitalize">
+                {monthName}
+              </h4>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextMonth}
+                className="text-teal-600 border-teal-300"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
 
-          {/* Calendar Days */}
-          <div className="grid grid-cols-7 gap-2">
-            {days.map((date, index) => {
-              const available = isDateAvailable(date);
-              const selected = isDateSelected(date);
-              const isTodayDate = isToday(date);
-
-              return (
-                <button
-                  key={index}
-                  disabled={!date || !available}
-                  onClick={() => date && available && onSelect(date)}
-                  className={`
-                    aspect-square p-2 rounded-lg text-base font-medium transition-all
-                    ${!date ? 'invisible' : ''}
-                    ${!available && date ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : ''}
-                    ${available && !selected ? 'text-gray-900 bg-teal-50 border-2 border-teal-200 hover:bg-teal-100 hover:border-teal-400' : ''}
-                    ${selected ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white border-2 border-teal-600 shadow-lg scale-105' : ''}
-                    ${isTodayDate && !selected ? 'border-2 border-blue-500' : ''}
-                  `}
+            {/* Week Days */}
+            <div className="grid grid-cols-7 gap-2 mb-2">
+              {weekDays.map((day) => (
+                <div
+                  key={day}
+                  className="text-center text-sm font-semibold text-gray-600 p-2"
                 >
-                  {date?.getDate()}
-                </button>
-              );
-            })}
-          </div>
+                  {day}
+                </div>
+              ))}
+            </div>
 
-          {/* Legend */}
-          <div className="flex flex-wrap gap-4 mt-6 pt-6 border-t border-gray-200">
-            <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 rounded bg-teal-50 border-2 border-teal-200"></div>
-              <span className="text-sm text-gray-600">Disponível</span>
+            {/* Calendar Days */}
+            <div className="grid grid-cols-7 gap-2">
+              {days.map((date, index) => {
+                const available = isDateAvailable(date);
+                const selected = isDateSelected(date);
+                const isPastDate = date && new Date(date).setHours(0, 0, 0, 0) <= today.getTime();
+
+                return (
+                  <button
+                    key={index}
+                    disabled={!date || !available}
+                    onClick={() => date && available && onSelect(date)}
+                    className={`
+                      aspect-square p-2 rounded-lg text-base font-medium transition-all
+                      ${!date ? 'invisible' : ''}
+                      ${isPastDate ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : ''}
+                      ${!available && date && !isPastDate ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : ''}
+                      ${available && !selected ? 'text-gray-900 bg-teal-50 border-2 border-teal-200 hover:bg-teal-100 hover:border-teal-400' : ''}
+                      ${selected ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white border-2 border-teal-600 shadow-lg scale-105' : ''}
+                    `}
+                  >
+                    {date?.getDate()}
+                  </button>
+                );
+              })}
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 rounded bg-gradient-to-r from-teal-500 to-cyan-500"></div>
-              <span className="text-sm text-gray-600">Selecionado</span>
+
+            {/* Legend */}
+            <div className="flex flex-wrap gap-4 mt-6 pt-6 border-t border-gray-200">
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 rounded bg-teal-50 border-2 border-teal-200"></div>
+                <span className="text-sm text-gray-600">Disponível</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 rounded bg-gradient-to-r from-teal-500 to-cyan-500"></div>
+                <span className="text-sm text-gray-600">Selecionado</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 rounded bg-gray-50 border-2 border-gray-200"></div>
+                <span className="text-sm text-gray-600">Indisponível</span>
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 rounded bg-gray-50 border-2 border-gray-200"></div>
-              <span className="text-sm text-gray-600">Indisponível</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 rounded border-2 border-blue-500"></div>
-              <span className="text-sm text-gray-600">Hoje</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex justify-between pt-4">
         <Button

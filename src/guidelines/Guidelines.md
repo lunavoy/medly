@@ -1,61 +1,108 @@
-**Add your own guidelines here**
-<!--
+## Sistema de Estilo — Resumo
 
-System Guidelines
+Este documento descreve a estética, usabilidade e padrões de componentes baseados em `src/styles/globals.css`.
+Use estas diretrizes para manter consistência visual e acessibilidade em toda a aplicação.
 
-Use this file to provide the AI with rules and guidelines you want it to follow.
-This template outlines a few examples of things you can add. You can add your own sections and format it to suit your needs
+**Tokens principais**
+- **Cores:** Definidas por variáveis CSS: `--background`, `--foreground`, `--primary`, `--secondary`, `--accent`, `--muted`, `--destructive`, etc.
+- **Radius:** `--radius` e variações de `--radius-sm|md|lg|xl` para cantos.
+- **Tipografia:** font-size base em `--font-size` (16px) e peso `--font-weight-normal|medium`.
+- **Tema escuro:** ativado pela classe `.dark` que sobrescreve os tokens.
 
-TIP: More context isn't always better. It can confuse the LLM. Try and add the most important rules you need
+## Botões
 
-# General guidelines
+Padrões principais de botão usados:
 
-Any general rules you want the AI to follow.
-For example:
+- **Primário (Primary)**
+  - Uso: ação principal por seção (submit, confirmar).
+  - Visual: fundo em `--primary`, texto em `--primary-foreground`.
+  - States: hover/darken, active/press; foco com `outline`/`ring` usando `--ring`.
+  - Acessibilidade: fornecer `aria-label` quando o texto não for explícito.
 
-* Only use absolute positioning when necessary. Opt for responsive and well structured layouts that use flexbox and grid by default
-* Refactor code as you go to keep code clean
-* Keep file sizes small and put helper functions and components in their own files.
+- **Secundário (Secondary)**
+  - Uso: ações alternativas.
+  - Visual: fundo transparente ou `--accent`, borda em `--border` e texto em `--secondary-foreground`.
 
---------------
+- **Tertiário / Text Button**
+  - Uso: ações de menor importância (links, ações auxiliares).
+  - Visual: texto simples com `color: var(--primary)` ou `var(--secondary)`.
 
-# Design system guidelines
-Rules for how the AI should make generations look like your company's design system
+**Tamanhos**
+- `small`, `default`, `large` — manter altura mínima de 36–48px para acessibilidade. Use classes utilitárias como `.clickable-large` para alvos maiores.
 
-Additionally, if you select a design system to use in the prompt box, you can reference
-your design system's components, tokens, variables and components.
-For example:
+**Estados e foco**
+- `:focus-visible` deve expor um anel com `--ring` (aplicar `.focus-visible-enhanced` quando quiser foco forte).
+- Usar transições suaves para hover/active (0.1–0.2s) para feedback visual.
 
-* Use a base font-size of 14px
-* Date formats should always be in the format “Jun 10”
-* The bottom toolbar should only ever have a maximum of 4 items
-* Never use the floating action button with the bottom toolbar
-* Chips should always come in sets of 3 or more
-* Don't use a dropdown if there are 2 or fewer options
+## Componentes e padrões de usabilidade
 
-You can also create sub sections and add more specific details
-For example:
+- **Inputs / Forms**
+  - Background: `--input-background` / `--input`.
+  - Borda: `--border`. Indicadores de erro devem usar `--destructive`.
+  - Placeholder e label: cores reduzidas (`--muted-foreground`).
 
+- **Cartões (Cards)**
+  - Fundo: `--card`, texto `--card-foreground`.
+  - Sombra leve e radius `--radius` para separar conteúdo.
 
-## Button
-The Button component is a fundamental interactive element in our design system, designed to trigger actions or navigate
-users through the application. It provides visual feedback and clear affordances to enhance user experience.
+- **Popover / Tooltip / Modal**
+  - Fundo: `--popover`, texto `--popover-foreground`.
+  - Animações: uso de classes `.animate-fade-in` `.animate-scale-in` para entrada; `.animate-slide-in-right` para panes deslizantes.
 
-### Usage
-Buttons should be used for important actions that users need to take, such as form submissions, confirming choices,
-or initiating processes. They communicate interactivity and should have clear, action-oriented labels.
+- **Sidebar / Navigation**
+  - Tokens: `--sidebar`, `--sidebar-foreground`, com destaque em `--sidebar-primary`/`--sidebar-accent`.
+  - Estado ativo: contraste maior, indicador lateral ou border com `--sidebar-ring`.
 
-### Variants
-* Primary Button
-  * Purpose : Used for the main action in a section or page
-  * Visual Style : Bold, filled with the primary brand color
-  * Usage : One primary button per section to guide users toward the most important action
-* Secondary Button
-  * Purpose : Used for alternative or supporting actions
-  * Visual Style : Outlined with the primary color, transparent background
-  * Usage : Can appear alongside a primary button for less important actions
-* Tertiary Button
-  * Purpose : Used for the least important actions
-  * Visual Style : Text-only with no border, using primary color
-  * Usage : For actions that should be available but not emphasized
--->
+- **Acessibilidade**
+  - Foco clara e ampliado: `.focus-visible-enhanced` para usuários que navegam por teclado.
+  - Modo alto contraste: `.high-contrast` ativa uma paleta de alto contraste para usuários com baixa visão.
+  - Font-size utilities: `.text-large` (125%) e `.text-xlarge` (150%) para aumentar legibilidade.
+  - Alvos de interação aumentados: `.clickable-large` (mínimo 48×48px).
+
+## Animações e transições
+
+- Pré-definições: `slideInRight`, `fadeIn`, `scaleIn` usadas com classes utilitárias (`.animate-*`).
+- Recomendações: usar animações curtas (≤300ms) e respeitar preferências `prefers-reduced-motion` (desativar animações quando solicitado pelo usuário).
+
+## Temas e tokens
+
+- A troca de tema é feita adicionando/removendo a classe `.dark` no elemento raiz; todas as variáveis mudam automaticamente.
+- Evitar cores hard-coded em componentes — consumir as variáveis CSS (`var(--color-*)` ou `var(--*)`).
+
+## Utilitários CSS relevantes
+
+- `@layer base` define tipografia e resets; `@layer utilities` contém utilitários específicos (foco, alto-contraste, tamanhos de texto).
+- Preferir classes utilitárias para alterações rápidas de acessibilidade (ex.: `.high-contrast`, `.text-large`).
+
+## Diretrizes de implementação de componentes
+
+- **Separação de preocupações:** cada componente deve expor propriedades para estado (disabled, loading, active) e aceitar classes adicionais.
+- **States visuais:** sempre prever estados: default, hover, focus, active, disabled, loading.
+- **Testes visuais:** verificar contrastes com ferramentas (WCAG AA mínimo para texto normal).
+
+## Exemplos rápidos
+
+- Botão primário:
+
+```html
+<button class="btn btn-primary focus-visible-enhanced">Salvar</button>
+```
+
+- Input com erro:
+
+```html
+<label>
+  Email
+  <input class="input" aria-invalid="true" />
+  <span class="text-destructive">Formato inválido</span>
+</label>
+```
+
+## Notas finais
+
+- Mantenha consistência usando os tokens em `src/styles/globals.css`.
+- Atualize este arquivo se adicionar novas variáveis, utilitários ou componentes com estilos próprios.
+- Se quiser, posso gerar um conjunto de classes CSS/React utilities para padronizar `btn-primary`, `btn-secondary`, `input`, `card` automaticamente.
+
+--
+Arquivo gerado a partir de `src/styles/globals.css` — última revisão automática.
