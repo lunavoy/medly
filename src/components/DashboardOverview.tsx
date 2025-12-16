@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Heart, Calendar, FileText, Clock, Shield, Settings } from 'lucide-react';
+import { Heart, Calendar, FileText, Shield, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { useAppointments, useExams } from '../hooks/useSupabase';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase/client';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -14,8 +13,7 @@ interface DashboardOverviewProps {
 }
 
 export function DashboardOverview({ user }: DashboardOverviewProps) {
-  const navigate = useNavigate();
-  const { appointments, loading: loadingAppts } = useAppointments();
+  const { appointments, loading: loadingAppts, refresh: refreshAppointments } = useAppointments();
   const { exams, loading: loadingExams } = useExams();
   const [ageInfo, setAgeInfo] = useState<{ full_name?: string; age?: number } | null>(null);
   const [loadingAge, setLoadingAge] = useState(true);
@@ -65,7 +63,7 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
     return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  if (loadingAppts || loadingExams || loadingAge) return <div>Carregando...</div>;
+  // Render sections independently instead of blocking whole dashboard
 
   const getStatusColor = (status: string) => {
     const statusLower = status?.toLowerCase() || '';
@@ -121,12 +119,16 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
                 <Calendar className="w-6 h-6 mr-3 text-cyan-600" />
                 Próximas Consultas
               </div>
-              <span className="text-base font-semibold text-cyan-700">{(appointments?.filter((a: any) => a.status !== 'cancelada')?.length) ?? 0}</span>
+              <span className="text-base font-semibold text-cyan-700">
+                {loadingAppts ? '…' : ((appointments?.filter((a: any) => a.status !== 'cancelada')?.length) ?? 0)}
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="max-h-80 overflow-y-auto space-y-4">
-              {appointments && appointments.filter((a: any) => a.status !== 'cancelada').length > 0 ? (
+              {loadingAppts ? (
+                <div className="p-4 text-center text-gray-600">Carregando consultas...</div>
+              ) : appointments && appointments.filter((a: any) => a.status !== 'cancelada').length > 0 ? (
                 appointments
                   .filter((appointment: any) => appointment.status !== 'cancelada')
                   .map((appointment: any, index: number) => {
@@ -203,11 +205,13 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
               <FileText className="w-6 h-6 mr-3 text-cyan-600" />
               Exames Recentes
             </div>
-            <span className="text-base font-semibold text-cyan-700">{exams?.length ?? 0}</span>
+            <span className="text-base font-semibold text-cyan-700">{loadingExams ? '…' : (exams?.length ?? 0)}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {exams && exams.length > 0 ? (
+          {loadingExams ? (
+            <div className="p-4 bg-cyan-50 rounded-lg text-center text-gray-600">Carregando exames...</div>
+          ) : exams && exams.length > 0 ? (
             <div className="space-y-3">
               {exams.map((exam: any, index: number) => (
                 <div key={index} className="flex items-center justify-between p-4 bg-cyan-50 rounded-lg">
@@ -256,9 +260,10 @@ export function DashboardOverview({ user }: DashboardOverviewProps) {
             setModalOpen(false);
             setSelectedAppointment(null);
           }}
-          onStatusChange={() => {
-            // Refresh appointments by re-rendering
-            window.location.reload();
+          onStatusChange={async () => {
+            await refreshAppointments();
+            setModalOpen(false);
+            setSelectedAppointment(null);
           }}
         />
       )}

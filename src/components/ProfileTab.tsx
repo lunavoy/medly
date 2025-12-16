@@ -7,7 +7,6 @@ import {
   Check,
   AlertTriangle,
   Phone,
-  Upload,
   Download,
   Lock,
   Trash2,
@@ -47,7 +46,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
     cpf: '',
     email: ''
   });
-  const [emergencyContacts, setEmergencyContacts] = useState([
+  const [emergencyContacts] = useState([
     { name: 'João Silva', phone: '(11) 98765-4321', relation: 'Filho' }
   ]);
 
@@ -143,38 +142,10 @@ export function ProfileTab({ user }: ProfileTabProps) {
     await persistAllergies(newAllergies);
   };
 
-  const toggleChronicCondition = async (condition: string) => {
-    const exists = healthData.chronicConditions.includes(condition);
-    if (exists) {
-      const next = healthData.chronicConditions.filter(c => c !== condition);
-      setHealthData({ ...healthData, chronicConditions: next });
-      await persistComorbidities(next);
-    } else {
-      const next = [...healthData.chronicConditions, condition];
-      setHealthData({ ...healthData, chronicConditions: next });
-      await persistComorbidities(next);
-    }
-  };
-
   const handleUploadDocument = (docType: string) => {
     toast.success(`Foto do documento carregada com sucesso!`);
     setDocuments({ ...documents, [docType]: true });
   };
-
-  const bloodTypes = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'Não sei'];
-  const chronicOptions = [
-    'Diabetes',
-    'Hipertensão',
-    'Asma',
-    'Epilepsia',
-    'Cardiopatia',
-    'Obesidade',
-    'Câncer',
-    'HIV',
-    'Hepatite',
-    'Doença renal crônica'
-  ];
-  const disabilityOptions = ['Visual', 'Auditiva', 'Motora', 'Intelectual', 'Psicossocial'];
 
   // Load real data for profile, blood types, and comorbidities
   useEffect(() => {
@@ -799,9 +770,10 @@ export function ProfileTab({ user }: ProfileTabProps) {
             </div>
             {emergencyContacts.length < 3 && (
               <Button
-                onClick={() => toast.info('Funcionalidade de adicionar contato será implementada')}
+                disabled
                 variant="outline"
-                className="w-full border-red-300 text-red-700"
+                className="w-full border-red-300 text-red-400"
+                title="Funcionalidade em desenvolvimento"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 Adicionar contato de emergência
@@ -859,9 +831,10 @@ export function ProfileTab({ user }: ProfileTabProps) {
             <h2 className="text-2xl text-gray-900 mb-6">Configurações do perfil</h2>
             <div className="space-y-4">
               <Button
-                onClick={() => toast.info('Funcionalidade de alterar senha será implementada')}
+                disabled
                 variant="outline"
-                className="w-full justify-start border-teal-300 text-teal-700"
+                className="w-full justify-start border-teal-300 text-teal-400"
+                title="Funcionalidade em desenvolvimento"
               >
                 <Lock className="w-5 h-5 mr-3" />
                 Alterar senha

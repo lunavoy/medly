@@ -27,7 +27,6 @@ export function useAuth() {
 
   const signInWithGoogle = async () => {
     const redirectUrl = `${redirectBase}/dashboard`
-    console.log('[DEBUG] Redirecting to:', redirectUrl)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

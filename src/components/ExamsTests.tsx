@@ -4,9 +4,7 @@ import {
   FileText,
   Download,
   Eye,
-  Calendar,
   Search,
-  Filter,
   Camera,
   Upload,
   X,
@@ -25,7 +23,6 @@ import {
   Scan,
   Plus,
   Mic,
-  FileImage,
   Loader
 } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
@@ -915,9 +912,10 @@ export function ExamsTests() {
                   Compartilhar com médico
                 </Button>
                 <Button
-                  onClick={() => toast.info('Funcionalidade de anotações será implementada')}
+                  disabled
                   variant="outline"
-                  className="flex-1 border-teal-300 text-teal-700 py-6 text-lg"
+                  className="flex-1 border-teal-300 text-teal-400 py-6 text-lg"
+                  title="Funcionalidade em desenvolvimento"
                 >
                   <Mic className="w-6 h-6 mr-3" />
                   Adicionar anotação

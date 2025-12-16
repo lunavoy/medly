@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../supabase/client'
 import { useAuth } from '../AuthProvider'
 
@@ -62,13 +62,16 @@ export function useAppointments() {
   const [appointments, setAppointments] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const fetchAppointments = useCallback(async () => {
     if (!user) {
+      setAppointments([])
       setLoading(false)
       return
     }
 
-    const fetchAppointments = async () => {
+    setLoading(true)
+
+    try {
       const { data, error } = await supabase
         .from('appointments')
         .select(`
@@ -84,16 +87,23 @@ export function useAppointments() {
 
       if (error) {
         console.error('Error fetching appointments:', error)
+        setAppointments([])
+      } else {
+        setAppointments(data ?? [])
       }
-      
-      if (data) setAppointments(data)
+    } catch (err) {
+      console.error('Unexpected error fetching appointments:', err)
+      setAppointments([])
+    } finally {
       setLoading(false)
     }
-
-    fetchAppointments()
   }, [user])
 
-  return { appointments, loading }
+  useEffect(() => {
+    fetchAppointments()
+  }, [fetchAppointments])
+
+  return { appointments, loading, refresh: fetchAppointments }
 }
 
 export function useExams() {
@@ -108,20 +118,26 @@ export function useExams() {
     }
 
     const fetchExams = async () => {
-      const { data, error } = await supabase
-        .from('exams')
-        .select('*')
-        .eq('patient_id', user.id)
-        .order('date', { ascending: false })
+      try {
+        const { data, error } = await supabase
+          .from('exams')
+          .select('*')
+          .eq('patient_id', user.id)
+          .order('date', { ascending: false })
 
-      if (error) {
-        console.error('Error fetching exams:', error)
-        // Table might not exist, set empty array
+        if (error) {
+          console.error('Error fetching exams:', error)
+          // Table might not exist, set empty array
+          setExams([])
+        } else if (data) {
+          setExams(data)
+        }
+      } catch (err) {
+        console.error('Unexpected error fetching exams:', err)
         setExams([])
-      } else if (data) {
-        setExams(data)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     fetchExams()
