@@ -5,6 +5,9 @@ export function useAuth() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  const normalizeUrl = (url) => url?.replace(/\/+$/, '')
+  const redirectBase = normalizeUrl(import.meta.env.VITE_SITE_URL || window.location.origin)
+
   useEffect(() => {
     // Verificar sessão atual
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,7 +29,7 @@ export function useAuth() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`
+        redirectTo: `${redirectBase}/dashboard`
       }
     })
     if (error) console.error('Erro no login:', error)
